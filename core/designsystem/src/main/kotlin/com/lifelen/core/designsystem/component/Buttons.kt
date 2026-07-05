@@ -106,6 +106,28 @@ fun MediaIconButton(
     }
 }
 
+/** Solid raised circle for on-surface nav (back/refresh) — HTML 36px `background:var(--raised)`. */
+@Composable
+fun RaisedCircleButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Int = 36,
+) {
+    Box(
+        modifier = modifier
+            .size(size.dp)
+            .clip(CircleShape)
+            .background(Raised)
+            .clickableEnabled(true, onClick)
+            .semantics { this.contentDescription = contentDescription },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(18.dp))
+    }
+}
+
 /** Square raised icon button for surfaces — Design Spec §3.1 IconButton `square-raised`. */
 @Composable
 fun RaisedIconButton(
