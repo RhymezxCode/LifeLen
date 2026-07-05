@@ -10,3 +10,12 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
 }
+
+// Convenience aggregate task so you can run the whole test suite from one place.
+tasks.register("allTests") {
+    group = "verification"
+    description = "Runs all unit tests (across app + core + feature modules) + connected instrumentation tests. " +
+        "Instrumentation tests require a running emulator or device."
+    dependsOn("test", "connectedAndroidTest")
+}
+
