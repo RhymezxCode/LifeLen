@@ -49,7 +49,9 @@ import com.lifelen.core.designsystem.theme.TextPrimary
 import com.lifelen.core.designsystem.theme.TextSecondary
 import com.lifelen.core.designsystem.theme.TitleStyle
 import com.lifelen.feature.results.components.FoodResultBody
+import com.lifelen.core.model.ScanCategory
 import com.lifelen.feature.results.components.IdentityHeader
+import com.lifelen.feature.results.components.PlantResultBody
 import com.lifelen.feature.results.components.ProductResultBody
 import com.lifelen.feature.results.components.ResultSkeleton
 import kotlinx.coroutines.delay
@@ -195,8 +197,8 @@ internal fun ResultsScreen(
                 is ResultsUiState.Ready -> {
                     IdentityHeader(uiState.scan)
                     val nutrition = uiState.scan.nutrition
-                    if (nutrition != null) {
-                        FoodResultBody(
+                    when {
+                        nutrition != null -> FoodResultBody(
                             scan = uiState.scan,
                             nutrition = nutrition,
                             portionFactor = uiState.portionFactor,
@@ -204,8 +206,14 @@ internal fun ResultsScreen(
                             onSave = onSave,
                             onSetPortion = onSetPortion,
                         )
-                    } else {
-                        ProductResultBody(
+
+                        uiState.scan.category == ScanCategory.PLANT -> PlantResultBody(
+                            scan = uiState.scan,
+                            saved = uiState.saved,
+                            onSave = onSave,
+                        )
+
+                        else -> ProductResultBody(
                             scan = uiState.scan,
                             saved = uiState.saved,
                             onSave = onSave,

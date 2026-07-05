@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -53,6 +54,7 @@ import com.lifelen.core.designsystem.theme.Amber
 import com.lifelen.core.designsystem.theme.AmberTint
 import com.lifelen.core.designsystem.theme.BodyStyle
 import com.lifelen.core.designsystem.theme.CaptionStyle
+import com.lifelen.core.designsystem.theme.CatPlant
 import com.lifelen.core.designsystem.theme.DataLg
 import com.lifelen.core.designsystem.theme.DataSm
 import com.lifelen.core.designsystem.theme.DataXl
@@ -259,6 +261,85 @@ internal fun PriceBlock(
                 modifier = Modifier.size(16.dp),
             )
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Plant modules (Design Spec §4 — StatRow + CareCard).
+// ---------------------------------------------------------------------------
+
+@Composable
+internal fun PlantResultBody(
+    scan: Scan,
+    saved: Boolean,
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val attributes = scan.identification.attributes
+    Column(modifier.fillMaxWidth()) {
+        val stats = attributes.entries.take(4).map { it.key to it.value }
+        if (stats.isNotEmpty()) {
+            StatRow(stats = stats, modifier = Modifier.padding(top = 18.dp))
+        }
+        Spacer(Modifier.height(16.dp))
+        CareCard(
+            watering = attributes["Water"] ?: attributes["Watering"],
+            petSafe = attributes["Pet-safe"] ?: attributes["Pet safe"],
+            placement = scan.identification.summary,
+        )
+        Spacer(Modifier.height(24.dp))
+        LifeLensButton(
+            text = if (saved) "Saved" else "Save to library",
+            onClick = onSave,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !saved,
+        )
+        Spacer(Modifier.height(14.dp))
+        SourceFootnote(text = "Care tips are general guidance")
+        Spacer(Modifier.height(14.dp))
+    }
+}
+
+/** Half-depth plant module: next watering + placement/pet-safety care guidance. */
+@Composable
+private fun CareCard(watering: String?, petSafe: String?, placement: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(LifeLensShapes.card)
+            .background(Raised)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text("Care", style = com.lifelen.core.designsystem.theme.TitleStyle, color = TextPrimary)
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
+        if (!watering.isNullOrBlank()) {
+            CareLine(icon = LifeLensIcons.Droplet, label = "Watering", value = watering)
+        }
+        if (!petSafe.isNullOrBlank()) {
+            CareLine(icon = LifeLensIcons.Pin, label = "Pet-safe", value = petSafe)
+        }
+        if (placement.isNotBlank()) {
+            Text(placement, style = BodyStyle, color = TextSecondary)
+        }
+    }
+}
+
+@Composable
+private fun CareLine(icon: ImageVector, label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(icon, contentDescription = null, tint = CatPlant, modifier = Modifier.size(16.dp))
+            Text(label, style = BodyStyle, color = TextSecondary)
+        }
+        Text(value, style = DataSm, color = TextPrimary)
     }
 }
 
