@@ -19,7 +19,9 @@ object QwenPrompts {
           "attributes": { string: string },      // ordered salient specs. For electronics ALWAYS try to
                                                   // include keys "Chip","Memory","Storage","Display" first,
                                                   // then more (Battery, Ports, Year). For books: Author, Year,
-                                                  // Pages, Rating. Keep values short (e.g. "8 GB", "256 GB").
+                                                  // Pages, Rating. For plants: "Light","Water","Difficulty",
+                                                  // "Pet-safe" (and put placement + next-watering advice in
+                                                  // summary). Keep values short (e.g. "8 GB", "Bright indirect").
           "tags": [string],                       // searchable keywords
           "search_query": string,                 // a query to find this item for sale online (omit for non-products)
           "nutrition": {                           // ONLY when category == food, else omit

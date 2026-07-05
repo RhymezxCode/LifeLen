@@ -26,6 +26,19 @@ class FoodHandler @Inject constructor() : CategoryHandler {
     ) = Enrichment(nutrition = parsedNutrition)
 }
 
+/**
+ * Plant handler — care guidance (light/water/difficulty/pet-safety, placement) is returned inline
+ * by the vision model as identification attributes + summary, so no extra network call is needed.
+ */
+class PlantHandler @Inject constructor() : CategoryHandler {
+    override val category = ScanCategory.PLANT
+    override suspend fun enrich(
+        identification: Identification,
+        parsedNutrition: NutritionInfo?,
+        options: ScanOptions,
+    ) = Enrichment()
+}
+
 /** Base for shoppable object types — runs the search-grounded pricing pipeline. */
 abstract class ProductHandler(
     private val pricing: PricingSynthesizer,

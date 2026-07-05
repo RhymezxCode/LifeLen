@@ -7,6 +7,7 @@ import com.lifelen.core.data.handler.ClothingHandler
 import com.lifelen.core.data.handler.ElectronicsHandler
 import com.lifelen.core.data.handler.FoodHandler
 import com.lifelen.core.data.handler.GenericHandler
+import com.lifelen.core.data.handler.PlantHandler
 import com.lifelen.core.data.repository.DataStoreApiKeyProvider
 import com.lifelen.core.data.repository.DefaultHistoryRepository
 import com.lifelen.core.data.repository.DefaultScanRepository
@@ -50,6 +51,10 @@ abstract class DataModule {
     @Binds
     @IntoSet
     abstract fun bindFoodHandler(handler: FoodHandler): CategoryHandler
+
+    @Binds
+    @IntoSet
+    abstract fun bindPlantHandler(handler: PlantHandler): CategoryHandler
 
     @Binds
     @IntoSet

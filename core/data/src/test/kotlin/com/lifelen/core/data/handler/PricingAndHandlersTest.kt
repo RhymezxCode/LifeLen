@@ -76,9 +76,18 @@ class PricingAndHandlersTest {
     }
 
     @Test
+    fun `plant handler adds no price or nutrition (care lives in attributes)`() = runTest {
+        val plant = laptop.copy(category = ScanCategory.PLANT, attributes = mapOf("Light" to "Bright indirect", "Water" to "Weekly"))
+        val enrichment = PlantHandler().enrich(plant, null, ScanOptions(true))
+        assertNull(enrichment.price)
+        assertNull(enrichment.nutrition)
+    }
+
+    @Test
     fun `registry routes by category and falls back to generic`() {
-        val registry = CategoryHandlerRegistry(setOf(GenericHandler(), FoodHandler()))
+        val registry = CategoryHandlerRegistry(setOf(GenericHandler(), FoodHandler(), PlantHandler()))
         assertTrue(registry.handlerFor(ScanCategory.FOOD) is FoodHandler)
+        assertTrue(registry.handlerFor(ScanCategory.PLANT) is PlantHandler)
         assertTrue(registry.handlerFor(ScanCategory.LANDMARK) is GenericHandler)
     }
 }
