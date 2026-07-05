@@ -39,6 +39,19 @@ class PlantHandler @Inject constructor() : CategoryHandler {
     ) = Enrichment()
 }
 
+/**
+ * Document handler — the transcribed text is returned inline by the vision model in the
+ * identification `attributes` ("Text") + summary, so no extra network call is needed.
+ */
+class DocumentHandler @Inject constructor() : CategoryHandler {
+    override val category = ScanCategory.DOCUMENT
+    override suspend fun enrich(
+        identification: Identification,
+        parsedNutrition: NutritionInfo?,
+        options: ScanOptions,
+    ) = Enrichment()
+}
+
 /** Base for shoppable object types — runs the search-grounded pricing pipeline. */
 abstract class ProductHandler(
     private val pricing: PricingSynthesizer,

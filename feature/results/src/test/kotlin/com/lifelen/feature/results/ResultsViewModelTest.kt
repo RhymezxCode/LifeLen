@@ -174,4 +174,41 @@ class ResultsViewModelTest {
             cancelAndConsumeRemainingEvents()
         }
     }
+
+    @Test
+    fun `toggleFavorite flips the flag and persists it`() = runTest {
+        val history = FakeHistoryRepository(listOf(sampleElectronics(id = "fav")))
+        val viewModel = vm(FakeScanRepository(), history = history, scanId = "fav")
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state !is ResultsUiState.Ready) state = awaitItem()
+
+            viewModel.toggleFavorite()
+            while (state !is ResultsUiState.Ready || !state.scan.isFavorite) state = awaitItem()
+            assertTrue((state as ResultsUiState.Ready).scan.isFavorite)
+            cancelAndConsumeRemainingEvents()
+        }
+        assertEquals("fav" to true, history.favoriteCalls.last())
+    }
+
+    @Test
+    fun `delete removes the scan and emits Deleted`() = runTest {
+        val history = FakeHistoryRepository(listOf(sampleElectronics(id = "del")))
+        val viewModel = vm(FakeScanRepository(), history = history, scanId = "del")
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state !is ResultsUiState.Ready) state = awaitItem()
+            cancelAndConsumeRemainingEvents()
+        }
+
+        viewModel.events.test {
+            viewModel.delete()
+            assertEquals(ResultEvent.Deleted, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+        assertTrue(history.deletedIds.contains("del"))
+        assertEquals(null, history.getScan("del"))
+    }
 }

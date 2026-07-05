@@ -84,10 +84,19 @@ class PricingAndHandlersTest {
     }
 
     @Test
+    fun `document handler adds no price or nutrition (text lives in attributes)`() = runTest {
+        val doc = laptop.copy(category = ScanCategory.DOCUMENT, attributes = mapOf("Text" to "Meeting at 3pm"))
+        val enrichment = DocumentHandler().enrich(doc, null, ScanOptions(true))
+        assertNull(enrichment.price)
+        assertNull(enrichment.nutrition)
+    }
+
+    @Test
     fun `registry routes by category and falls back to generic`() {
-        val registry = CategoryHandlerRegistry(setOf(GenericHandler(), FoodHandler(), PlantHandler()))
+        val registry = CategoryHandlerRegistry(setOf(GenericHandler(), FoodHandler(), PlantHandler(), DocumentHandler()))
         assertTrue(registry.handlerFor(ScanCategory.FOOD) is FoodHandler)
         assertTrue(registry.handlerFor(ScanCategory.PLANT) is PlantHandler)
+        assertTrue(registry.handlerFor(ScanCategory.DOCUMENT) is DocumentHandler)
         assertTrue(registry.handlerFor(ScanCategory.LANDMARK) is GenericHandler)
     }
 }

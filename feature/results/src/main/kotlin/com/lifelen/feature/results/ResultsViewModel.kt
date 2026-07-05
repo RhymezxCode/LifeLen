@@ -123,6 +123,27 @@ class ResultsViewModel @Inject constructor(
         }
     }
 
+    /** Saved-detail — flip the favourite flag, persist it, and reflect it optimistically. */
+    fun toggleFavorite() {
+        val scan = (_uiState.value as? ResultsUiState.Ready)?.scan ?: return
+        val next = !scan.isFavorite
+        viewModelScope.launch {
+            historyRepository.toggleFavorite(scan.id, next)
+            _uiState.update {
+                if (it is ResultsUiState.Ready) it.copy(scan = it.scan.copy(isFavorite = next)) else it
+            }
+        }
+    }
+
+    /** Saved-detail — remove the scan from the library and pop back via [ResultEvent.Deleted]. */
+    fun delete() {
+        val scan = (_uiState.value as? ResultsUiState.Ready)?.scan ?: return
+        viewModelScope.launch {
+            historyRepository.delete(scan.id)
+            _events.emit(ResultEvent.Deleted)
+        }
+    }
+
     /** Adjust the food portion multiplier (clamped 0.5..4 in 0.5 steps). */
     fun setPortion(factor: Float) {
         val clamped = ((factor / 0.5f).roundToInt() * 0.5f).coerceIn(0.5f, 4f)

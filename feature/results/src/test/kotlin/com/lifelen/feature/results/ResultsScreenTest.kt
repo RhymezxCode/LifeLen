@@ -34,6 +34,8 @@ class ResultsScreenTest {
         onSave: () -> Unit = {},
         onSetPortion: (Float) -> Unit = {},
         onOpenPrices: (String) -> Unit = {},
+        onToggleFavorite: () -> Unit = {},
+        onDelete: () -> Unit = {},
     ) {
         compose.setContent {
             LifeLensTheme {
@@ -47,6 +49,8 @@ class ResultsScreenTest {
                     onSave = onSave,
                     onSetPortion = onSetPortion,
                     onOpenPrices = onOpenPrices,
+                    onToggleFavorite = onToggleFavorite,
+                    onDelete = onDelete,
                 )
             }
         }
@@ -129,5 +133,38 @@ class ResultsScreenTest {
         compose.onNodeWithContentDescription("Increase").performScrollTo().performClick()
 
         assertTrue(stepped)
+    }
+
+    @Test
+    fun `saved detail exposes favorite and delete controls that fire callbacks`() {
+        var favorited = false
+        var deleted = false
+        render(
+            ResultsUiState.Ready(sampleElectronics(), saved = true),
+            onToggleFavorite = { favorited = true },
+            onDelete = { deleted = true },
+        )
+
+        compose.onNodeWithContentDescription("Favorite").performClick()
+        assertTrue(favorited)
+
+        compose.onNodeWithContentDescription("Delete").performClick()
+        assertTrue(deleted)
+    }
+
+    @Test
+    fun `fresh scan hides favorite and delete controls`() {
+        render(ResultsUiState.Ready(sampleElectronics(), saved = false))
+
+        compose.onNodeWithContentDescription("Favorite").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Delete").assertDoesNotExist()
+    }
+
+    @Test
+    fun `document scan shows the transcribed text`() {
+        render(ResultsUiState.Ready(sampleDocument(), saved = false))
+
+        compose.onNodeWithText("Transcribed text").assertExists()
+        compose.onNodeWithText("bring the quarterly report", substring = true).assertExists()
     }
 }

@@ -14,6 +14,8 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Search
@@ -41,6 +43,8 @@ object LifeLensIcons {
     val TrendingDown = Icons.Rounded.TrendingDown
     val Droplet = Icons.Outlined.WaterDrop
     val Trash = Icons.Outlined.Delete
+    val Favorite = Icons.Rounded.Favorite
+    val FavoriteOutline = Icons.Rounded.FavoriteBorder
     val Pin = Icons.Outlined.PushPin
     val Plus = Icons.Rounded.Add
     val Minus = Icons.Rounded.Remove

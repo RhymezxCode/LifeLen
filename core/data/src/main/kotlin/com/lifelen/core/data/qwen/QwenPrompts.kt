@@ -21,7 +21,9 @@ object QwenPrompts {
                                                   // then more (Battery, Ports, Year). For books: Author, Year,
                                                   // Pages, Rating. For plants: "Light","Water","Difficulty",
                                                   // "Pet-safe" (and put placement + next-watering advice in
-                                                  // summary). Keep values short (e.g. "8 GB", "Bright indirect").
+                                                  // summary). For documents: transcribe the visible text into a
+                                                  // "Text" attribute (verbatim, keep line breaks) and name the
+                                                  // document type in summary. Keep other values short (e.g. "8 GB").
           "tags": [string],                       // searchable keywords
           "search_query": string,                 // a query to find this item for sale online (omit for non-products)
           "nutrition": {                           // ONLY when category == food, else omit

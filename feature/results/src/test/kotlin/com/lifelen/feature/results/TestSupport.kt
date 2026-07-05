@@ -36,14 +36,22 @@ class MainDispatcherRule(
 
 class FakeHistoryRepository(initial: List<Scan> = emptyList()) : HistoryRepository {
     val scans = MutableStateFlow(initial)
+    val favoriteCalls = mutableListOf<Pair<String, Boolean>>()
+    val deletedIds = mutableListOf<String>()
+
     override fun observeHistory(): Flow<List<Scan>> = scans
     override fun observeFavorites(): Flow<List<Scan>> = scans.map { list -> list.filter { it.isFavorite } }
     override fun search(query: String): Flow<List<Scan>> =
         scans.map { list -> list.filter { it.title.contains(query, ignoreCase = true) } }
 
     override suspend fun getScan(id: String): Scan? = scans.value.firstOrNull { it.id == id }
-    override suspend fun toggleFavorite(id: String, isFavorite: Boolean) = Unit
+    override suspend fun toggleFavorite(id: String, isFavorite: Boolean) {
+        favoriteCalls += id to isFavorite
+        scans.value = scans.value.map { if (it.id == id) it.copy(isFavorite = isFavorite) else it }
+    }
+
     override suspend fun delete(id: String) {
+        deletedIds += id
         scans.value = scans.value.filterNot { it.id == id }
     }
 
@@ -51,6 +59,20 @@ class FakeHistoryRepository(initial: List<Scan> = emptyList()) : HistoryReposito
         scans.value = emptyList()
     }
 }
+
+/** A document [Scan] whose transcribed text lives in the "Text" attribute. */
+fun sampleDocument(id: String = "d1"): Scan = Scan(
+    id = id,
+    imagePath = "/d.jpg",
+    identification = Identification(
+        title = "Handwritten note",
+        category = ScanCategory.DOCUMENT,
+        summary = "A handwritten note.",
+        confidence = 0.7f,
+        attributes = linkedMapOf("Text" to "Meeting at 3pm, bring the quarterly report."),
+    ),
+    createdAt = 1_700_000_000_000L,
+)
 
 /** Configurable [ScanRepository]; records [save] calls and returns canned results. */
 class FakeScanRepository(

@@ -48,6 +48,7 @@ import com.lifelen.core.designsystem.theme.SubtleBorder
 import com.lifelen.core.designsystem.theme.TextPrimary
 import com.lifelen.core.designsystem.theme.TextSecondary
 import com.lifelen.core.designsystem.theme.TitleStyle
+import com.lifelen.feature.results.components.DocumentResultBody
 import com.lifelen.feature.results.components.FoodResultBody
 import com.lifelen.core.model.ScanCategory
 import com.lifelen.feature.results.components.IdentityHeader
@@ -75,6 +76,7 @@ fun ResultRoute(
             when (event) {
                 ResultEvent.Saved -> savedPillVisible = true
                 ResultEvent.Retake -> onBack()
+                ResultEvent.Deleted -> onBack()
             }
         }
     }
@@ -95,6 +97,8 @@ fun ResultRoute(
         onSave = viewModel::save,
         onSetPortion = viewModel::setPortion,
         onOpenPrices = onOpenPrices,
+        onToggleFavorite = viewModel::toggleFavorite,
+        onDelete = viewModel::delete,
     )
 }
 
@@ -120,8 +124,12 @@ internal fun ResultsScreen(
     onSave: () -> Unit,
     onSetPortion: (Float) -> Unit,
     onOpenPrices: (String) -> Unit,
+    onToggleFavorite: () -> Unit = {},
+    onDelete: () -> Unit = {},
 ) {
-    val isSavedDetail = (uiState as? ResultsUiState.Ready)?.saved == true
+    val ready = uiState as? ResultsUiState.Ready
+    val isSavedDetail = ready?.saved == true
+    val isFavorite = ready?.scan?.isFavorite == true
 
     Box(
         Modifier
@@ -162,11 +170,25 @@ internal fun ResultsScreen(
                 contentDescription = "Close",
                 onClick = onBack,
             )
-            MediaIconButton(
-                icon = LifeLensIcons.Refresh,
-                contentDescription = if (isSavedDetail) "Refresh price" else "Retake",
-                onClick = if (isSavedDetail) onRefresh else onRetake,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isSavedDetail) {
+                    MediaIconButton(
+                        icon = if (isFavorite) LifeLensIcons.Favorite else LifeLensIcons.FavoriteOutline,
+                        contentDescription = if (isFavorite) "Unfavorite" else "Favorite",
+                        onClick = onToggleFavorite,
+                    )
+                    MediaIconButton(
+                        icon = LifeLensIcons.Trash,
+                        contentDescription = "Delete",
+                        onClick = onDelete,
+                    )
+                }
+                MediaIconButton(
+                    icon = LifeLensIcons.Refresh,
+                    contentDescription = if (isSavedDetail) "Refresh price" else "Retake",
+                    onClick = if (isSavedDetail) onRefresh else onRetake,
+                )
+            }
         }
 
         // Result sheet.
@@ -208,6 +230,12 @@ internal fun ResultsScreen(
                         )
 
                         uiState.scan.category == ScanCategory.PLANT -> PlantResultBody(
+                            scan = uiState.scan,
+                            saved = uiState.saved,
+                            onSave = onSave,
+                        )
+
+                        uiState.scan.category == ScanCategory.DOCUMENT -> DocumentResultBody(
                             scan = uiState.scan,
                             saved = uiState.saved,
                             onSave = onSave,

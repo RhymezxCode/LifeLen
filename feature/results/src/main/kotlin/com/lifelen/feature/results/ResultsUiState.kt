@@ -35,4 +35,7 @@ sealed interface ResultsUiState {
 sealed interface ResultEvent {
     data object Saved : ResultEvent
     data object Retake : ResultEvent
+
+    /** The saved scan was deleted from the library; the route should pop back. */
+    data object Deleted : ResultEvent
 }

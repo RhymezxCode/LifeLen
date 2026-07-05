@@ -4,6 +4,7 @@ import com.lifelen.core.common.network.ApiKeyProvider
 import com.lifelen.core.data.handler.BookHandler
 import com.lifelen.core.data.handler.CategoryHandler
 import com.lifelen.core.data.handler.ClothingHandler
+import com.lifelen.core.data.handler.DocumentHandler
 import com.lifelen.core.data.handler.ElectronicsHandler
 import com.lifelen.core.data.handler.FoodHandler
 import com.lifelen.core.data.handler.GenericHandler
@@ -55,6 +56,10 @@ abstract class DataModule {
     @Binds
     @IntoSet
     abstract fun bindPlantHandler(handler: PlantHandler): CategoryHandler
+
+    @Binds
+    @IntoSet
+    abstract fun bindDocumentHandler(handler: DocumentHandler): CategoryHandler
 
     @Binds
     @IntoSet

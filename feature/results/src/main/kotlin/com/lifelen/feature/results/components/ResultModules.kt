@@ -210,6 +210,67 @@ internal fun ProductResultBody(
     }
 }
 
+/**
+ * Document module (S04 for `category == document`) — surfaces the text Qwen transcribed from the
+ * image (`attributes["Text"]`, falling back to the summary) in a readable card, plus save/share.
+ */
+@Composable
+internal fun DocumentResultBody(
+    scan: Scan,
+    saved: Boolean,
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val text = (
+        scan.identification.attributes["Text"]
+            ?: scan.identification.attributes["text"]
+            ?: scan.identification.summary
+        ).ifBlank { "No readable text found." }
+    Column(modifier.fillMaxWidth()) {
+        Spacer(Modifier.height(18.dp))
+        Text("Transcribed text", style = LabelStyle, color = TextSecondary)
+        Spacer(Modifier.height(8.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(LifeLensShapes.card)
+                .background(Raised)
+                .border(1.dp, SubtleBorder, LifeLensShapes.card)
+                .padding(16.dp),
+        ) {
+            Text(text = text, style = BodyStyle, color = TextPrimary)
+        }
+        Spacer(Modifier.height(24.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LifeLensButton(
+                text = if (saved) "Saved" else "Save to library",
+                onClick = onSave,
+                modifier = Modifier.weight(1f),
+                enabled = !saved,
+            )
+            RaisedIconButton(
+                icon = LifeLensIcons.Share,
+                contentDescription = "Share",
+                onClick = {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, text)
+                    }
+                    context.startActivity(Intent.createChooser(intent, null))
+                },
+            )
+        }
+        Spacer(Modifier.height(14.dp))
+        SourceFootnote(text = "Transcribed by Qwen-VL")
+        Spacer(Modifier.height(14.dp))
+    }
+}
+
 @Composable
 internal fun PriceBlock(
     price: PriceInfo,
