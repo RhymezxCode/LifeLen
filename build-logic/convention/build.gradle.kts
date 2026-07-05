@@ -53,6 +53,10 @@ gradlePlugin {
             id = "lifelen.android.room"
             implementationClass = "AndroidRoomConventionPlugin"
         }
+        register("androidTest") {
+            id = "lifelen.android.test"
+            implementationClass = "AndroidTestConventionPlugin"
+        }
         register("jvmLibrary") {
             id = "lifelen.jvm.library"
             implementationClass = "JvmLibraryConventionPlugin"

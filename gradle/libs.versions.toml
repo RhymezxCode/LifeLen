@@ -44,6 +44,8 @@ junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
 turbine = "1.2.1"
+robolectric = "4.15.1"
+androidxTestCore = "1.6.1"
 
 [libraries]
 # --- AndroidX core / lifecycle ---
@@ -114,6 +116,8 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 
 # --- Gradle plugin artifacts (used by build-logic convention plugins) ---
 android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }
@@ -139,4 +143,5 @@ lifelen-android-library-compose = { id = "lifelen.android.library.compose" }
 lifelen-android-feature = { id = "lifelen.android.feature" }
 lifelen-android-hilt = { id = "lifelen.android.hilt" }
 lifelen-android-room = { id = "lifelen.android.room" }
+lifelen-android-test = { id = "lifelen.android.test" }
 lifelen-jvm-library = { id = "lifelen.jvm.library" }

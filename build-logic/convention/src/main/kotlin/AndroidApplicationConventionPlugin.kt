@@ -27,6 +27,9 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 sourceCompatibility = JavaVersion.VERSION_11
                 targetCompatibility = JavaVersion.VERSION_11
             }
+            testOptions {
+                unitTests.isIncludeAndroidResources = true
+            }
         }
         // With built-in Kotlin, jvmTarget defaults to compileOptions.targetCompatibility (11).
     }

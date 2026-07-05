@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.lifelen.android.application)
     alias(libs.plugins.lifelen.android.application.compose)
     alias(libs.plugins.lifelen.android.hilt)
+    alias(libs.plugins.lifelen.android.test)
 }
 
 // Build-time API-key defaults, read from a gitignored secrets.properties at the repo root.

@@ -14,6 +14,7 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
             apply("lifelen.android.library")
             apply("lifelen.android.library.compose")
             apply("lifelen.android.hilt")
+            apply("lifelen.android.test")
         }
 
         dependencies {
@@ -28,9 +29,8 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
             add("implementation", libs.findLibrary("androidx-lifecycle-viewmodel-compose").get())
             add("implementation", libs.findLibrary("androidx-compose-material-icons-extended").get())
             add("implementation", libs.findLibrary("coil-compose").get())
-
-            add("testImplementation", libs.findLibrary("kotlinx-coroutines-test").get())
-            add("testImplementation", libs.findLibrary("turbine").get())
+            // Test stack (Robolectric + Compose test + coroutines-test + turbine) comes from
+            // the applied `lifelen.android.test` convention.
         }
     }
 }

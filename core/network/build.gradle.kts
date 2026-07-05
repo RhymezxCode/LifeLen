@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.lifelen.android.library)
     alias(libs.plugins.lifelen.android.hilt)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.lifelen.android.test)
 }
 
 android {
