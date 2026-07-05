@@ -54,13 +54,9 @@ import com.lifelen.core.designsystem.theme.SubtleBorder
 import com.lifelen.core.designsystem.theme.TextPrimary
 import com.lifelen.core.designsystem.theme.TextSecondary
 import com.lifelen.core.designsystem.theme.TitleStyle
-import com.lifelen.feature.results.components.DocumentResultBody
-import com.lifelen.feature.results.components.FoodResultBody
 import com.lifelen.core.model.Scan
-import com.lifelen.core.model.ScanCategory
 import com.lifelen.feature.results.components.IdentityHeader
-import com.lifelen.feature.results.components.PlantResultBody
-import com.lifelen.feature.results.components.ProductResultBody
+import com.lifelen.feature.results.components.ReadyBody
 import com.lifelen.feature.results.components.ResultSkeleton
 import kotlinx.coroutines.delay
 import java.io.File
@@ -218,7 +214,6 @@ internal fun ResultsScreen(
                 .clip(LifeLensShapes.sheet)
                 .background(Body)
                 .border(1.dp, SubtleBorder, LifeLensShapes.sheet)
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(top = 12.dp, bottom = 20.dp),
         ) {
@@ -228,47 +223,32 @@ internal fun ResultsScreen(
                     .padding(bottom = 16.dp),
             )
             when (uiState) {
-                ResultsUiState.Processing -> ResultSkeleton()
+                ResultsUiState.Processing ->
+                    Box(Modifier.weight(1f).fillMaxWidth()) { ResultSkeleton() }
 
-                is ResultsUiState.Failed -> FailedContent(uiState.message, onBack)
+                is ResultsUiState.Failed ->
+                    Box(Modifier.weight(1f).fillMaxWidth()) { FailedContent(uiState.message, onBack) }
 
-                ResultsUiState.NotFound -> NotFoundContent(onBack)
+                ResultsUiState.NotFound ->
+                    Box(Modifier.weight(1f).fillMaxWidth()) { NotFoundContent(onBack) }
 
-                is ResultsUiState.Offline -> OfflineContent(uiState.lastScan, onRetry)
+                is ResultsUiState.Offline ->
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                    ) { OfflineContent(uiState.lastScan, onRetry) }
 
-                is ResultsUiState.Ready -> {
-                    IdentityHeader(uiState.scan)
-                    val nutrition = uiState.scan.nutrition
-                    when {
-                        nutrition != null -> FoodResultBody(
-                            scan = uiState.scan,
-                            nutrition = nutrition,
-                            portionFactor = uiState.portionFactor,
-                            saved = uiState.saved,
-                            onSave = onSave,
-                            onSetPortion = onSetPortion,
-                        )
-
-                        uiState.scan.category == ScanCategory.PLANT -> PlantResultBody(
-                            scan = uiState.scan,
-                            saved = uiState.saved,
-                            onSave = onSave,
-                        )
-
-                        uiState.scan.category == ScanCategory.DOCUMENT -> DocumentResultBody(
-                            scan = uiState.scan,
-                            saved = uiState.saved,
-                            onSave = onSave,
-                        )
-
-                        else -> ProductResultBody(
-                            scan = uiState.scan,
-                            saved = uiState.saved,
-                            onSave = onSave,
-                            onOpenPrices = onOpenPrices,
-                        )
-                    }
-                }
+                is ResultsUiState.Ready -> ReadyBody(
+                    scan = uiState.scan,
+                    saved = uiState.saved,
+                    portionFactor = uiState.portionFactor,
+                    onSave = onSave,
+                    onSetPortion = onSetPortion,
+                    onOpenPrices = onOpenPrices,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
 

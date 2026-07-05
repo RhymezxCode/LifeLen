@@ -2,6 +2,8 @@ package com.lifelen.feature.results.components
 
 import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -179,56 +181,99 @@ private fun NeutralChip(text: String) {
 // Electronics / product modules (Design Spec §3.3 S04).
 // ---------------------------------------------------------------------------
 
+/**
+ * The scrollable content + pinned action footer for a Ready result. The sheet gives this a fixed
+ * height; content scrolls in the weighted region while the actions stay pinned near thumb reach.
+ */
 @Composable
-internal fun ProductResultBody(
+internal fun ReadyBody(
     scan: Scan,
     saved: Boolean,
+    portionFactor: Float,
     onSave: () -> Unit,
+    onSetPortion: (Float) -> Unit,
     onOpenPrices: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
+    var adjustOpen by remember(scan.id) { mutableStateOf(false) }
+    val nutrition = scan.nutrition
     Column(modifier.fillMaxWidth()) {
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            IdentityHeader(scan)
+            when {
+                nutrition != null -> FoodContent(nutrition, portionFactor, onSetPortion, adjustOpen)
+                scan.category == ScanCategory.PLANT -> PlantContent(scan)
+                scan.category == ScanCategory.DOCUMENT -> DocumentContent(scan)
+                else -> ProductContent(scan, onOpenPrices)
+            }
+        }
+        when {
+            nutrition != null -> FoodActions(saved, onSave) { adjustOpen = !adjustOpen }
+            scan.category == ScanCategory.PLANT -> PlantActions(saved, onSave)
+            scan.category == ScanCategory.DOCUMENT -> DocumentActions(scan, saved, onSave)
+            else -> ProductActions(scan, saved, onSave)
+        }
+    }
+}
+
+/** Standard pinned action footer: a button row over the mandatory source footnote. */
+@Composable
+private fun ActionFooter(
+    footnote: String,
+    actions: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Spacer(Modifier.height(14.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = actions,
+        )
+        Spacer(Modifier.height(12.dp))
+        SourceFootnote(text = footnote)
+    }
+}
+
+@Composable
+private fun ProductContent(scan: Scan, onOpenPrices: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
         val stats = scan.identification.attributes.entries.take(4).map { it.key to it.value }
         if (stats.isNotEmpty()) {
             StatRow(stats = stats, modifier = Modifier.padding(top = 18.dp))
         }
         scan.price?.let { price ->
             Spacer(Modifier.height(16.dp))
-            PriceBlock(
-                price = price,
-                onSellers = { onOpenPrices(scan.id) },
-            )
+            PriceBlock(price = price, onSellers = { onOpenPrices(scan.id) })
         }
-        Spacer(Modifier.height(24.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            LifeLensButton(
-                text = if (saved) "Saved" else "Save to library",
-                onClick = onSave,
-                modifier = Modifier.weight(1f),
-                enabled = !saved,
-            )
-            RaisedIconButton(
-                icon = LifeLensIcons.Share,
-                contentDescription = "Share",
-                onClick = {
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, scan.title)
-                    }
-                    context.startActivity(Intent.createChooser(intent, null))
-                },
-            )
-        }
-        Spacer(Modifier.height(14.dp))
-        SourceFootnote(
-            text = scan.price?.footnote() ?: "Identified moments ago",
+    }
+}
+
+@Composable
+private fun ProductActions(scan: Scan, saved: Boolean, onSave: () -> Unit) {
+    val context = LocalContext.current
+    ActionFooter(footnote = scan.price?.footnote() ?: "Identified moments ago") {
+        LifeLensButton(
+            text = if (saved) "Saved" else "Save to library",
+            onClick = onSave,
+            modifier = Modifier.weight(1f),
+            enabled = !saved,
         )
-        Spacer(Modifier.height(14.dp))
+        RaisedIconButton(
+            icon = LifeLensIcons.Share,
+            contentDescription = "Share",
+            onClick = {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, scan.title)
+                }
+                context.startActivity(Intent.createChooser(intent, null))
+            },
+        )
     }
 }
 
@@ -244,20 +289,15 @@ private fun PriceInfo.footnote(): String {
  * Document module (S04 for `category == document`) — surfaces the text Qwen transcribed from the
  * image (`attributes["Text"]`, falling back to the summary) in a readable card, plus save/share.
  */
+private fun documentText(scan: Scan): String = (
+    scan.identification.attributes["Text"]
+        ?: scan.identification.attributes["text"]
+        ?: scan.identification.summary
+    ).ifBlank { "No readable text found." }
+
 @Composable
-internal fun DocumentResultBody(
-    scan: Scan,
-    saved: Boolean,
-    onSave: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    val text = (
-        scan.identification.attributes["Text"]
-            ?: scan.identification.attributes["text"]
-            ?: scan.identification.summary
-        ).ifBlank { "No readable text found." }
-    Column(modifier.fillMaxWidth()) {
+private fun DocumentContent(scan: Scan) {
+    Column(Modifier.fillMaxWidth()) {
         Spacer(Modifier.height(18.dp))
         Text("Transcribed text", style = LabelStyle, color = TextSecondary)
         Spacer(Modifier.height(8.dp))
@@ -269,35 +309,32 @@ internal fun DocumentResultBody(
                 .border(1.dp, SubtleBorder, LifeLensShapes.card)
                 .padding(16.dp),
         ) {
-            Text(text = text, style = BodyStyle, color = TextPrimary)
+            Text(text = documentText(scan), style = BodyStyle, color = TextPrimary)
         }
-        Spacer(Modifier.height(24.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            LifeLensButton(
-                text = if (saved) "Saved" else "Save to library",
-                onClick = onSave,
-                modifier = Modifier.weight(1f),
-                enabled = !saved,
-            )
-            RaisedIconButton(
-                icon = LifeLensIcons.Share,
-                contentDescription = "Share",
-                onClick = {
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, text)
-                    }
-                    context.startActivity(Intent.createChooser(intent, null))
-                },
-            )
-        }
-        Spacer(Modifier.height(14.dp))
-        SourceFootnote(text = "Transcribed by Qwen-VL")
-        Spacer(Modifier.height(14.dp))
+    }
+}
+
+@Composable
+private fun DocumentActions(scan: Scan, saved: Boolean, onSave: () -> Unit) {
+    val context = LocalContext.current
+    ActionFooter(footnote = "Transcribed by Qwen-VL") {
+        LifeLensButton(
+            text = if (saved) "Saved" else "Save to library",
+            onClick = onSave,
+            modifier = Modifier.weight(1f),
+            enabled = !saved,
+        )
+        RaisedIconButton(
+            icon = LifeLensIcons.Share,
+            contentDescription = "Share",
+            onClick = {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, documentText(scan))
+                }
+                context.startActivity(Intent.createChooser(intent, null))
+            },
+        )
     }
 }
 
@@ -360,14 +397,9 @@ internal fun PriceBlock(
 // ---------------------------------------------------------------------------
 
 @Composable
-internal fun PlantResultBody(
-    scan: Scan,
-    saved: Boolean,
-    onSave: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun PlantContent(scan: Scan) {
     val attributes = scan.identification.attributes
-    Column(modifier.fillMaxWidth()) {
+    Column(Modifier.fillMaxWidth()) {
         val stats = attributes.entries.take(4).map { it.key to it.value }
         if (stats.isNotEmpty()) {
             StatRow(stats = stats, modifier = Modifier.padding(top = 18.dp))
@@ -378,16 +410,18 @@ internal fun PlantResultBody(
             petSafe = attributes["Pet-safe"] ?: attributes["Pet safe"],
             placement = scan.identification.summary,
         )
-        Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun PlantActions(saved: Boolean, onSave: () -> Unit) {
+    ActionFooter(footnote = "Care tips are general guidance") {
         LifeLensButton(
             text = if (saved) "Saved" else "Save to library",
             onClick = onSave,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.weight(1f),
             enabled = !saved,
         )
-        Spacer(Modifier.height(14.dp))
-        SourceFootnote(text = "Care tips are general guidance")
-        Spacer(Modifier.height(14.dp))
     }
 }
 
@@ -439,14 +473,11 @@ private fun CareLine(icon: ImageVector, label: String, value: String) {
 // ---------------------------------------------------------------------------
 
 @Composable
-internal fun FoodResultBody(
-    scan: Scan,
+private fun FoodContent(
     nutrition: NutritionInfo,
     portionFactor: Float,
-    saved: Boolean,
-    onSave: () -> Unit,
     onSetPortion: (Float) -> Unit,
-    modifier: Modifier = Modifier,
+    adjustOpen: Boolean,
 ) {
     val f = portionFactor
     val caloriesScaled = (nutrition.calories * f).roundToInt()
@@ -457,7 +488,7 @@ internal fun FoodResultBody(
     val sugarsScaled = (nutrition.sugars * f).roundToInt()
     val sodiumScaled = (nutrition.sodium * f).roundToInt()
 
-    Column(modifier.fillMaxWidth()) {
+    Column(Modifier.fillMaxWidth()) {
         Spacer(Modifier.height(18.dp))
         PortionRow(
             factor = f,
@@ -497,33 +528,27 @@ internal fun FoodResultBody(
         NutritionRow(label = "Sugars", value = "$sugarsScaled g")
         NutritionRow(label = "Sodium", value = "$sodiumScaled mg", trailingChevron = true)
 
-        Spacer(Modifier.height(24.dp))
-        var adjustOpen by remember { mutableStateOf(false) }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            LifeLensButton(
-                text = if (saved) "Saved" else "Save to library",
-                onClick = onSave,
-                modifier = Modifier.weight(1f),
-                enabled = !saved,
-            )
-            LifeLensButton(
-                text = "Adjust items",
-                onClick = { adjustOpen = !adjustOpen },
-                type = ButtonType.Secondary,
-            )
-        }
         if (adjustOpen && nutrition.ingredients.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
             IngredientChecklist(nutrition.ingredients)
         }
+    }
+}
 
-        Spacer(Modifier.height(14.dp))
-        SourceFootnote(text = "Estimates vary by recipe")
-        Spacer(Modifier.height(14.dp))
+@Composable
+private fun FoodActions(saved: Boolean, onSave: () -> Unit, onToggleAdjust: () -> Unit) {
+    ActionFooter(footnote = "Estimates vary by recipe") {
+        LifeLensButton(
+            text = if (saved) "Saved" else "Save to library",
+            onClick = onSave,
+            modifier = Modifier.weight(1f),
+            enabled = !saved,
+        )
+        LifeLensButton(
+            text = "Adjust items",
+            onClick = onToggleAdjust,
+            type = ButtonType.Secondary,
+        )
     }
 }
 

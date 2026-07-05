@@ -95,7 +95,8 @@ class ResultsScreenTest {
         var saved = false
         render(ResultsUiState.Ready(sampleElectronics(), saved = false), onSave = { saved = true })
 
-        compose.onNodeWithText("Save to library").performScrollTo().performClick()
+        // Save is pinned in the sheet footer (always visible), so no scroll needed.
+        compose.onNodeWithText("Save to library").performClick()
 
         assertTrue(saved)
     }
