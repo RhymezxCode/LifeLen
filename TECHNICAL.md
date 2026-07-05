@@ -25,8 +25,9 @@ Companion docs: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** (structure) · 
 | AI / Vision | Qwen-VL via DashScope OpenAI-compatible API |
 | Search grounding | Pluggable `SearchClient` (Serper / Tavily / SerpAPI / Bing) |
 | Local persistence | Room (scan history) + DataStore (settings & API keys) |
+| Connectivity | `NetworkMonitor` (`ConnectivityManager`) for the offline fallback |
 | Build | Gradle Kotlin DSL, version catalog, `build-logic` convention plugins, composite build |
-| Testing | JUnit4, Compose UI test, Turbine, OkHttp MockWebServer |
+| Testing | JUnit4, **Robolectric** (JVM-runnable Android + Compose UI/E2E), Turbine, OkHttp MockWebServer |
 
 **Platform targets:** `minSdk 24`, `targetSdk 37`, `compileSdk 37`, Java **11**, Kotlin **2.2.10**, AGP **9.4.0-alpha03**.
 
@@ -55,7 +56,7 @@ The system prompt forces strict JSON and routes categories (food vs. product vs.
   "messages": [
     {
       "role": "system",
-      "content": "You are LifeLens, a visual identification engine. Identify the primary object in the image. Respond ONLY with a single JSON object, no prose, matching this schema: {\"name\": string, \"category\": one of [\"FOOD\",\"ELECTRONICS\",\"BOOK\",\"CLOTHING\",\"PLANT\",\"ANIMAL\",\"LANDMARK\",\"DOCUMENT\",\"GENERIC\"], \"confidence\": number 0..1, \"attributes\": object of string->string, \"searchQuery\": string|null (a precise shopping query if this is a purchasable product, else null), \"nutrition\": {\"calories\": number, \"protein\": number, \"carbs\": number, \"fat\": number, \"portion\": string}|null (only if FOOD), \"extractedText\": string|null (only if DOCUMENT)}. Never include markdown fences."
+      "content": "You are LifeLens, a visual identification engine. Identify the primary object in the image. Respond ONLY with a single JSON object, no prose, matching this schema: {\"name\": string, \"category\": one of [\"FOOD\",\"ELECTRONICS\",\"BOOK\",\"CLOTHING\",\"PLANT\",\"ANIMAL\",\"LANDMARK\",\"DOCUMENT\",\"GENERIC\"], \"confidence\": number 0..1, \"attributes\": object of string->string, \"searchQuery\": string|null (a precise shopping query if this is a purchasable product, else null), \"nutrition\": {\"calories\": number, \"protein\": number, \"carbs\": number, \"fat\": number, \"portion\": string}|null (only if FOOD)}. For DOCUMENT, transcribe the visible text into the attributes map under a \"Text\" key. Never include markdown fences."
     },
     {
       "role": "user",
@@ -79,7 +80,7 @@ The system prompt forces strict JSON and routes categories (food vs. product vs.
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "{\"name\":\"Dell XPS 13 (9340)\",\"category\":\"ELECTRONICS\",\"confidence\":0.86,\"attributes\":{\"cpu\":\"Intel Core Ultra 7\",\"ram\":\"16GB\",\"display\":\"13.4\\\" FHD+\",\"weight\":\"1.19kg\"},\"searchQuery\":\"Dell XPS 13 9340 Core Ultra 7 16GB price\",\"nutrition\":null,\"extractedText\":null}"
+        "content": "{\"name\":\"Dell XPS 13 (9340)\",\"category\":\"ELECTRONICS\",\"confidence\":0.86,\"attributes\":{\"cpu\":\"Intel Core Ultra 7\",\"ram\":\"16GB\",\"display\":\"13.4\\\" FHD+\",\"weight\":\"1.19kg\"},\"searchQuery\":\"Dell XPS 13 9340 Core Ultra 7 16GB price\",\"nutrition\":null}"
       },
       "finish_reason": "stop"
     }
@@ -94,7 +95,7 @@ The app deserializes the DashScope envelope with kotlinx.serialization, then par
 
 - **One object, strict JSON, no markdown.** Reduces post-processing and drift.
 - **Category routing in the same call** so the `CategoryHandler` registry can dispatch immediately.
-- **Conditional fields:** `nutrition` only for `FOOD`, `extractedText` only for `DOCUMENT`, `searchQuery` only for purchasable products — keeps payloads lean.
+- **Conditional fields:** `nutrition` only for `FOOD`; for `DOCUMENT` the visible text is transcribed into a `Text` **attribute** (`DocumentHandler` + `DocumentResultBody` surface it); `searchQuery` only for purchasable products — keeps payloads lean.
 - **Low temperature (~0.2)** and a bounded `max_tokens` (~800 for identification) for stable, cheap responses.
 
 ### Price-synthesis call
@@ -174,9 +175,8 @@ data class Identification(
     val name: String,
     val category: ScanCategory,
     val confidence: Float,
-    val attributes: Map<String, String> = emptyMap(),
+    val attributes: Map<String, String> = emptyMap(), // for DOCUMENT the transcription lands here under "Text"
     val searchQuery: String? = null,
-    val extractedText: String? = null,
 )
 
 data class NutritionInfo(
@@ -244,19 +244,23 @@ class CategoryHandlerRegistry @Inject constructor(
 ```
 
 - `FoodHandler` → returns `NutritionInfo` (already present from the identification call, or a refining call).
-- `ElectronicsHandler` → builds the search query, calls `SearchClient`, calls Qwen price synthesis → `PriceInfo`; also normalizes spec attributes.
-- `BookHandler` / `ClothingHandler` → category-specific metadata (and optional pricing).
-- `GenericHandler` → the safe default for plants, animals, landmarks, documents (OCR), logos, and anything unrouted.
+- `ElectronicsHandler` / `BookHandler` / `ClothingHandler` → product handlers (a shared `ProductHandler` base): build the search query, call `SearchClient`, call Qwen price synthesis → `PriceInfo`; also normalize spec attributes.
+- `PlantHandler` → care guidance (light/water/difficulty/pet-safety) returned inline by Qwen as attributes; no extra call.
+- `DocumentHandler` → routes `ScanCategory.DOCUMENT`; the transcription is returned inline in the `Text` attribute (surfaced by `DocumentResultBody`), so no extra call.
+- `GenericHandler` → the safe default for animals, landmarks, logos, and anything unrouted.
 
-Handlers are contributed via Hilt multibindings:
+Handlers are contributed via Hilt multibindings in `DataModule` (add one `@Binds @IntoSet` line per type):
 
 ```kotlin
 @Module @InstallIn(SingletonComponent::class)
-interface CategoryHandlerModule {
-    @Binds @IntoSet fun food(h: FoodHandler): CategoryHandler
-    @Binds @IntoSet fun electronics(h: ElectronicsHandler): CategoryHandler
-    @Binds @IntoSet fun book(h: BookHandler): CategoryHandler
-    @Binds @IntoSet fun clothing(h: ClothingHandler): CategoryHandler
+abstract class DataModule {
+    @Binds @IntoSet abstract fun generic(h: GenericHandler): CategoryHandler
+    @Binds @IntoSet abstract fun food(h: FoodHandler): CategoryHandler
+    @Binds @IntoSet abstract fun plant(h: PlantHandler): CategoryHandler
+    @Binds @IntoSet abstract fun document(h: DocumentHandler): CategoryHandler
+    @Binds @IntoSet abstract fun electronics(h: ElectronicsHandler): CategoryHandler
+    @Binds @IntoSet abstract fun book(h: BookHandler): CategoryHandler
+    @Binds @IntoSet abstract fun clothing(h: ClothingHandler): CategoryHandler
 }
 ```
 
@@ -290,8 +294,7 @@ data class ScanEntity(
     val confidence: Float,
     val attributesJson: String,       // serialized Map
     val nutritionJson: String?,       // serialized NutritionInfo
-    val priceJson: String?,           // serialized PriceInfo
-    val extractedText: String?,
+    val priceJson: String?,           // serialized PriceInfo (document text is carried inside attributesJson)
     val isFavorite: Boolean = false,
     val createdAt: Long,
 )
@@ -312,6 +315,33 @@ interface ScanDao {
 ```
 
 **Migrations:** for the hackathon, schema export is enabled and destructive migration is acceptable during rapid iteration; production would add versioned `Migration`s. DAO reads return `Flow` so the UI is reactive and offline-capable.
+
+---
+
+## Result Actions & Offline Fallback
+
+**Favorite / delete / share (saved detail).** Re-opening a saved scan shows a detail sheet whose top controls expose a favourite toggle (filled/outline heart) and a delete (trash) action alongside refresh:
+
+- `ResultsViewModel.toggleFavorite()` calls `HistoryRepository.toggleFavorite(id, !isFavorite)` (`ScanDao.setFavorite`) and updates the `Ready` state optimistically.
+- `ResultsViewModel.delete()` calls `HistoryRepository.delete(id)` (`ScanDao.deleteById`) and emits `ResultEvent.Deleted`, which the route collects to pop back to the Library.
+- Share is a system `ACTION_SEND` chooser carrying the scan's summary (or the document transcription).
+- These controls appear only for saved scans — a fresh, unsaved capture is not yet in the database.
+
+**Offline last-result fallback.** A fresh capture that fails is routed by connectivity rather than dead-ending on a generic error:
+
+```kotlin
+is DataResult.Error ->
+    _uiState.value = if (!networkMonitor.isOnline()) {
+        // history is newest-first → most recent saved scan is the fallback
+        ResultsUiState.Offline(lastScan = historyRepository.observeHistory().first().firstOrNull())
+    } else {
+        ResultsUiState.Failed(result.throwable.message ?: "Couldn't identify this")
+    }
+```
+
+- `NetworkMonitor` (`AndroidNetworkMonitor` over `ConnectivityManager`; needs `ACCESS_NETWORK_STATE`) reports connectivity; it is bound in `DataModule` and mockable in tests via a `FakeNetworkMonitor`.
+- `ResultsUiState.Offline(lastScan)` renders "You're offline" + the last scan (`IdentityHeader`) + a **Try again** button.
+- `retry()` re-runs identification against the capture draft still held by `ScanSession`, so reconnecting and retrying flows straight into a normal `Ready` result.
 
 ---
 
@@ -365,8 +395,8 @@ Why: consistent, DRY builds; a new module is productive in a couple of lines; ve
 |---|---|---|
 | **Repository / data** | JUnit4 + **OkHttp MockWebServer** + **Turbine** | Qwen client parsing (identification + price synthesis), error mapping (401/rate-limit/parse), search grounding path, `Flow` emissions from repositories. |
 | **CategoryHandler** | JUnit4 | Each handler's enrichment logic in isolation (fake `SearchClient`/`QwenVisionClient`). |
-| **ViewModel** | JUnit4 + Turbine + test dispatchers | `StateFlow<UiState>` transitions Loading → Success/Error; event handling. |
-| **UI** | **Compose UI test** | Key screens render each `UiState`; capture, favorite, search interactions; accessibility semantics. |
+| **ViewModel** | JUnit4 + Turbine + test dispatchers | `StateFlow<UiState>` transitions Loading → Ready/Failed/**Offline**; favourite/delete/retry events. |
+| **UI / E2E** | **Compose UI test on Robolectric** (JVM, no device) | Every screen renders each `UiState` (incl. **Offline** and document transcription); favourite/delete/share, portion, condition-filter, and search interactions; accessibility semantics. |
 
 - Inject dispatchers (`@Dispatcher`) so coroutines run on a `StandardTestDispatcher` deterministically.
 - MockWebServer serves canned DashScope/search JSON so tests are hermetic and offline.
