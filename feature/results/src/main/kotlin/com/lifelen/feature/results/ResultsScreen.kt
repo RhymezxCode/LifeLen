@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -213,6 +214,7 @@ internal fun ResultsScreen(
                 .alpha(sheetFade)
                 .fillMaxWidth()
                 .fillMaxHeight(0.60f)
+                .navigationBarsPadding()
                 .clip(LifeLensShapes.sheet)
                 .background(Body)
                 .border(1.dp, SubtleBorder, LifeLensShapes.sheet)

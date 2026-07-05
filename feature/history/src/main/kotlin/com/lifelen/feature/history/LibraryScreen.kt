@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
@@ -104,7 +106,7 @@ internal fun LibraryScreen(
     val showEmpty = !uiState.isLoading && uiState.groups.isEmpty()
 
     Box(Modifier.fillMaxSize().background(Chamber)) {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
             // NavBar
             Row(
                 modifier = Modifier
@@ -195,6 +197,7 @@ internal fun LibraryScreen(
                 onClick = onNewScan,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
                     .padding(bottom = 26.dp),
             )
         }
