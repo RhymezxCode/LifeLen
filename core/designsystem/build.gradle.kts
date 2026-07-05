@@ -8,6 +8,7 @@ android {
 }
 
 dependencies {
+    api(project(":core:model"))
     api(libs.androidx.compose.material.icons.extended)
     api(libs.coil.compose)
     implementation(libs.coil.network.okhttp)

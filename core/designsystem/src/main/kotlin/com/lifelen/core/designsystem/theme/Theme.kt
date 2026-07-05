@@ -1,60 +1,42 @@
 package com.lifelen.core.designsystem.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-
-private val LightColors = lightColorScheme(
-    primary = Teal500,
-    onPrimary = Color.White,
-    primaryContainer = Teal200,
-    secondary = Amber500,
-    tertiary = Coral500,
-    background = LightBackground,
-    surface = LightSurface,
-)
-
-private val DarkColors = darkColorScheme(
-    primary = Teal200,
-    onPrimary = Teal700,
-    primaryContainer = Teal700,
-    secondary = Amber500,
-    tertiary = Coral500,
-    background = DarkBackground,
-    surface = DarkSurface,
-)
 
 /**
- * The single Compose theme for the whole app. Every feature wraps its previews and the
- * app wraps its content in [LifeLensTheme] so styling stays consistent across modules.
+ * Dark-only Material 3 scheme mapped to LifeLens tokens (§2.1) so stock Material components
+ * (TopAppBar, ModalBottomSheet, ripples) inherit the right colors. Bespoke components read the
+ * raw tokens directly.
  */
+private val LifeLensColorScheme = darkColorScheme(
+    primary = Amber,
+    onPrimary = OnAmber,
+    primaryContainer = AmberTint,
+    onPrimaryContainer = Amber,
+    secondary = Positive,
+    tertiary = CatBook,
+    background = Chamber,
+    onBackground = TextPrimary,
+    surface = Body,
+    onSurface = TextPrimary,
+    surfaceVariant = Raised,
+    onSurfaceVariant = TextSecondary,
+    surfaceContainer = Raised,
+    surfaceContainerHigh = Raised2,
+    outline = SubtleBorder,
+    outlineVariant = Hairline,
+    error = Negative,
+    onError = OnAmber,
+    scrim = Chamber,
+)
+
+/** Single dark theme for the whole app (Design Spec §1 — dark only for v1). */
 @Composable
-fun LifeLensTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit,
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColors
-        else -> LightColors
-    }
-
+fun LifeLensTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography(),
+        colorScheme = LifeLensColorScheme,
+        typography = LifeLensTypography,
         content = content,
     )
 }
