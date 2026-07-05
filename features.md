@@ -310,14 +310,33 @@ Content descriptions, semantics, focus order, and ≥48dp targets throughout.
 
 **Technical requirements** — semantics across all `:feature:*` screens and `:core:designsystem` components.
 
-#### Quick-scan home-screen widget
-Launch straight into the scanner from a widget.
+### Widgets (home screen) — shipped
+
+Five Jetpack Glance widgets bring LifeLens to the home screen. *(Android removed third-party
+lock-screen widgets on phones in API 21, so these are home-screen App Widgets — kept compact enough
+to suit lock contexts on launchers/OEMs that still allow it.)*
+
+| Widget | Shows | Tap |
+|---|---|---|
+| **Quick Scan** | Amber scan button | Opens the app to the camera |
+| **Last Scan** | Most recent scan — title + price / kcal | Opens the app |
+| **Library Stats** | Total scans + today's count | Opens the app |
+| **Daily Calories** | Sum of today's food-scan calories + recent meals | Opens the app |
+| **Price Watch** | Latest priced item + price-trend delta | Opens the app |
 
 **User workflow**
-1. Tap the widget.
-2. Land on the scanner, ready to capture.
+1. Long-press the home screen → **Widgets** → **LifeLens**.
+2. Drop a widget (e.g. Daily Calories) onto the home screen and resize it.
+3. Widgets refresh periodically and reflect your latest library.
+4. Tap any widget to jump into the app.
 
-**Technical requirements** — Glance/App Widget in `:app` deep-linking to `:feature:scanner`.
+**Technical requirements**
+- `:feature:widget` — one `GlanceAppWidget` + `GlanceAppWidgetReceiver` per widget, an
+  `appwidget-provider` XML descriptor, and manifest `<receiver>`s merged into `:app`.
+- Reads the library via a Hilt `@EntryPoint` (`WidgetEntryPoint` → `HistoryRepository.observeHistory()`),
+  wrapped in `runCatching` so any failure degrades to a safe empty state.
+- Taps open `MainActivity` via `actionStartActivity(ComponentName(...))` — no compile-time dependency on `:app`.
+- Previews are standard Compose `@Preview` approximations (a Glance composable can't render on the ordinary Compose preview host).
 
 ---
 
@@ -334,3 +353,4 @@ Launch straight into the scanner from a widget.
 | Scan history + manage | `:core:database`, `:core:data`, `:feature:history` |
 | Settings & API keys | `:core:datastore`, `:feature:settings` |
 | Robust UI states | `:core:common`, `:core:designsystem`, all features |
+| Home-screen widgets | `:feature:widget` (Glance) |
