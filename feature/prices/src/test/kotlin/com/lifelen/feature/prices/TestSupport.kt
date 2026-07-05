@@ -70,6 +70,8 @@ class FakeScanRepository(
         refreshCalls++
         return refreshResult ?: DataResult.Success(scan)
     }
+
+    override suspend fun ask(scan: Scan, question: String): DataResult<String> = DataResult.Success("ok")
 }
 
 class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRepository {
