@@ -303,6 +303,7 @@ private fun BottomChrome(
     onPickGallery: () -> Unit,
     onOpenLibrary: () -> Unit,
 ) {
+    val hairlineColor = Hairline // hoisted: theme tokens can't be read inside the draw lambda
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -310,7 +311,7 @@ private fun BottomChrome(
             .background(Chamber)
             .drawBehind {
                 drawLine(
-                    color = Hairline,
+                    color = hairlineColor,
                     start = Offset(0f, 0f),
                     end = Offset(size.width, 0f),
                     strokeWidth = 1.dp.toPx(),

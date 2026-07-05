@@ -9,7 +9,7 @@ import com.lifelen.core.designsystem.theme.CatFood
 import com.lifelen.core.designsystem.theme.CatFoodTint
 import com.lifelen.core.designsystem.theme.CatPlant
 import com.lifelen.core.designsystem.theme.CatPlantTint
-import com.lifelen.core.designsystem.theme.TextSecondary
+import com.lifelen.core.designsystem.theme.NeutralAccent
 import com.lifelen.core.model.ScanCategory
 
 /** Chip color + label for a category — single source of truth (Design Spec §2.1 category tokens). */
@@ -23,6 +23,6 @@ fun ScanCategory.visual(): CategoryVisual = when (this) {
     ScanCategory.CLOTHING -> CategoryVisual("Clothing", CatBook, CatBookTint)
     ScanCategory.ANIMAL -> CategoryVisual("Animal", CatPlant, CatPlantTint)
     ScanCategory.LANDMARK -> CategoryVisual("Landmark", CatElectronics, CatElectronicsTint)
-    ScanCategory.DOCUMENT -> CategoryVisual("Document", TextSecondary, CatBookTint)
-    ScanCategory.GENERIC -> CategoryVisual("Object", TextSecondary, CatElectronicsTint)
+    ScanCategory.DOCUMENT -> CategoryVisual("Document", NeutralAccent, CatBookTint)
+    ScanCategory.GENERIC -> CategoryVisual("Object", NeutralAccent, CatElectronicsTint)
 }

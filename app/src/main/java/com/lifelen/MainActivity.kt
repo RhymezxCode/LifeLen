@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.lifelen.core.designsystem.theme.Chamber
 import com.lifelen.core.designsystem.theme.LifeLensTheme
@@ -26,8 +29,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun LifeLensApp() {
-    LifeLensTheme {
+private fun LifeLensApp(viewModel: MainViewModel = hiltViewModel()) {
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    LifeLensTheme(themeMode = themeMode) {
         val navController = rememberNavController()
         androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Chamber)) {
             LifeLensNavHost(navController = navController)

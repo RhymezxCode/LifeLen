@@ -14,6 +14,7 @@ interface HistoryRepository {
     suspend fun getScan(id: String): Scan?
     suspend fun toggleFavorite(id: String, isFavorite: Boolean)
     suspend fun delete(id: String)
+    suspend fun clearAll()
 }
 
 class DefaultHistoryRepository @Inject constructor(
@@ -41,4 +42,6 @@ class DefaultHistoryRepository @Inject constructor(
         scanDao.getById(id)?.let { imageStore.delete(it.imagePath) }
         scanDao.deleteById(id)
     }
+
+    override suspend fun clearAll() = scanDao.deleteAll()
 }

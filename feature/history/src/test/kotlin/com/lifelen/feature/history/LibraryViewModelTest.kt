@@ -34,6 +34,10 @@ private class FakeHistoryRepository(initial: List<Scan>) : HistoryRepository {
     override suspend fun delete(id: String) {
         scans.value = scans.value.filterNot { it.id == id }
     }
+
+    override suspend fun clearAll() {
+        scans.value = emptyList()
+    }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
