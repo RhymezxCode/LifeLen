@@ -79,7 +79,26 @@ fun LibraryRoute(
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val onFilter: (ScanCategory?) -> Unit = viewModel::onFilter
+    LibraryScreen(
+        uiState = uiState,
+        onQueryChange = viewModel::onQueryChange,
+        onFilter = viewModel::onFilter,
+        onOpenScan = onOpenScan,
+        onNewScan = onNewScan,
+        onBack = onBack,
+    )
+}
+
+/** Stateless library screen — rendered by [LibraryRoute] and by the previews below. */
+@Composable
+internal fun LibraryScreen(
+    uiState: LibraryUiState,
+    onQueryChange: (String) -> Unit,
+    onFilter: (ScanCategory?) -> Unit,
+    onOpenScan: (String) -> Unit,
+    onNewScan: () -> Unit,
+    onBack: () -> Unit,
+) {
     val showEmpty = !uiState.isLoading && uiState.groups.isEmpty()
 
     Box(Modifier.fillMaxSize().background(Chamber)) {
@@ -114,7 +133,7 @@ fun LibraryRoute(
             // Search
             LifeLensSearchBar(
                 query = uiState.query,
-                onQueryChange = viewModel::onQueryChange,
+                onQueryChange = onQueryChange,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 placeholder = "Search scans, specs, prices",
             )
@@ -313,102 +332,8 @@ private fun Double.money(): String {
 }
 
 // ---------------------------------------------------------------------------
-// Previews (Android Studio preview pane).
-//
-// LibraryRoute drives its UI from a Hilt ViewModel and its row/header/FAB pieces
-// are file-private, so the preview renders a stateless copy of the same layout
-// with sample data — no changes to the production composables.
+// Previews — render the real stateless LibraryScreen with sample data.
 // ---------------------------------------------------------------------------
-
-@Composable
-private fun LibraryScreenPreview(uiState: LibraryUiState) {
-    val showEmpty = !uiState.isLoading && uiState.groups.isEmpty()
-
-    Box(Modifier.fillMaxSize().background(Chamber)) {
-        Column(Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                MediaIconButton(
-                    icon = LifeLensIcons.ChevronLeft,
-                    contentDescription = "Back",
-                    onClick = {},
-                )
-                Text(
-                    text = "Library",
-                    style = TitleStyle,
-                    color = TextPrimary,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = uiState.totalCount.toString(),
-                    style = DataSm,
-                    color = TextSecondary,
-                )
-            }
-
-            LifeLensSearchBar(
-                query = uiState.query,
-                onQueryChange = {},
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = "Search scans, specs, prices",
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ModeChip("All", uiState.filter == null, onClick = {})
-                ModeChip("Electronics", uiState.filter == ScanCategory.ELECTRONICS, onClick = {})
-                ModeChip("Food", uiState.filter == ScanCategory.FOOD, onClick = {})
-                ModeChip("Plants", uiState.filter == ScanCategory.PLANT, onClick = {})
-            }
-
-            if (showEmpty) {
-                Box(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    EmptyState(
-                        headline = "Nothing scanned yet",
-                        body = "Your identified items will live here.",
-                        ctaText = "Start scanning",
-                        onCta = {},
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
-                ) {
-                    uiState.groups.forEach { group ->
-                        item(key = "header_${group.header}") { GroupHeader(group.header) }
-                        items(group.scans, key = { it.id }) { scan ->
-                            LibraryRow(scan = scan, onClick = {})
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!showEmpty) {
-            FloatingScanButton(
-                onClick = {},
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 26.dp),
-            )
-        }
-    }
-}
 
 private fun previewLaptopScan() = Scan(
     id = "1",
@@ -467,7 +392,7 @@ private fun previewFoodScan() = Scan(
 @Composable
 private fun LibraryPopulatedPreview() {
     LifeLensTheme {
-        LibraryScreenPreview(
+        LibraryScreen(
             uiState = LibraryUiState(
                 isLoading = false,
                 totalCount = 2,
@@ -476,6 +401,11 @@ private fun LibraryPopulatedPreview() {
                     LibraryGroup(header = "Yesterday", scans = listOf(previewFoodScan())),
                 ),
             ),
+            onQueryChange = {},
+            onFilter = {},
+            onOpenScan = {},
+            onNewScan = {},
+            onBack = {},
         )
     }
 }
@@ -484,8 +414,13 @@ private fun LibraryPopulatedPreview() {
 @Composable
 private fun LibraryEmptyPreview() {
     LifeLensTheme {
-        LibraryScreenPreview(
+        LibraryScreen(
             uiState = LibraryUiState(isLoading = false, groups = emptyList(), totalCount = 0),
+            onQueryChange = {},
+            onFilter = {},
+            onOpenScan = {},
+            onNewScan = {},
+            onBack = {},
         )
     }
 }

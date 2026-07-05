@@ -12,6 +12,7 @@ import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -456,5 +457,57 @@ private fun BottomChromePreview() {
             onPickGallery = {},
             onOpenLibrary = {},
         )
+    }
+}
+
+// The live viewfinder (CameraX AndroidView) can't render in a preview, so this shows the S02
+// overlay chrome — detection brackets, label chip, hint, mode strip and bottom chrome.
+@androidx.compose.ui.tooling.preview.Preview(
+    name = "S02 · Camera home",
+    showBackground = true,
+    backgroundColor = 0xFF0D0F13,
+    widthDp = 390,
+    heightDp = 844,
+)
+@Composable
+private fun CameraHomePreview() {
+    com.lifelen.core.designsystem.theme.LifeLensTheme {
+        Box(Modifier.fillMaxSize().background(Chamber)) {
+            DetectionBrackets(
+                state = DetectionState.Locked,
+                modifier = Modifier
+                    .align(BiasAlignment(0f, 0.05f))
+                    .size(width = 258.dp, height = 176.dp),
+            )
+            Row(
+                modifier = Modifier
+                    .align(BiasAlignment(0f, -0.28f))
+                    .clip(CircleShape)
+                    .background(Chamber)
+                    .border(1.dp, Amber, CircleShape)
+                    .padding(horizontal = 15.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(Amber))
+                Text("MacBook Air (M2)", style = com.lifelen.core.designsystem.theme.LabelStyle, color = TextPrimary)
+                Text("94%", style = DataSm, color = Amber)
+            }
+            Text(
+                text = "Tap the shutter to identify",
+                style = BodyStyle,
+                color = TextSecondary,
+                modifier = Modifier.align(BiasAlignment(0f, 0.5f)),
+            )
+            Column(Modifier.align(Alignment.BottomCenter)) {
+                ModeStrip(selected = "Auto", onSelect = {}, modifier = Modifier.padding(bottom = 12.dp))
+                BottomChrome(
+                    uiState = ScannerUiState(libraryCount = 3),
+                    onCapture = {},
+                    onPickGallery = {},
+                    onOpenLibrary = {},
+                )
+            }
+        }
     }
 }
