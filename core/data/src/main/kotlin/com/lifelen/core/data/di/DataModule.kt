@@ -1,6 +1,8 @@
 package com.lifelen.core.data.di
 
 import com.lifelen.core.common.network.ApiKeyProvider
+import com.lifelen.core.data.connectivity.AndroidNetworkMonitor
+import com.lifelen.core.data.connectivity.NetworkMonitor
 import com.lifelen.core.data.handler.BookHandler
 import com.lifelen.core.data.handler.CategoryHandler
 import com.lifelen.core.data.handler.ClothingHandler
@@ -42,6 +44,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindApiKeyProvider(impl: DataStoreApiKeyProvider): ApiKeyProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindNetworkMonitor(impl: AndroidNetworkMonitor): NetworkMonitor
 
     // --- Object-type handler registry (add a @Binds @IntoSet line for each new type) ---
 

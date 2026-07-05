@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifelen.core.common.result.DataResult
+import com.lifelen.core.data.connectivity.NetworkMonitor
 import com.lifelen.core.data.repository.HistoryRepository
 import com.lifelen.core.data.repository.ScanRepository
 import com.lifelen.core.data.repository.SettingsRepository
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -33,6 +35,7 @@ class ResultsViewModel @Inject constructor(
     private val historyRepository: HistoryRepository,
     private val settingsRepository: SettingsRepository,
     private val scanSession: ScanSession,
+    private val networkMonitor: NetworkMonitor,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -86,9 +89,14 @@ class ResultsViewModel @Inject constructor(
                 }
 
                 is DataResult.Error ->
-                    _uiState.value = ResultsUiState.Failed(
-                        result.throwable.message ?: "Couldn't identify this",
-                    )
+                    _uiState.value = if (!networkMonitor.isOnline()) {
+                        // Offline: fall back to the most recent saved scan (history is newest-first).
+                        ResultsUiState.Offline(
+                            lastScan = historyRepository.observeHistory().first().firstOrNull(),
+                        )
+                    } else {
+                        ResultsUiState.Failed(result.throwable.message ?: "Couldn't identify this")
+                    }
 
                 DataResult.Loading -> Unit
             }
@@ -109,6 +117,9 @@ class ResultsViewModel @Inject constructor(
     fun retake() {
         viewModelScope.launch { _events.emit(ResultEvent.Retake) }
     }
+
+    /** Re-attempt a failed/offline fresh identification — the draft is still held by the session. */
+    fun retry() = identifyFresh()
 
     /** Saved-detail top-right control — re-fetch live pricing and swap in the updated scan. */
     fun refresh() {

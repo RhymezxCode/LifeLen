@@ -36,6 +36,7 @@ class ResultsScreenTest {
         onOpenPrices: (String) -> Unit = {},
         onToggleFavorite: () -> Unit = {},
         onDelete: () -> Unit = {},
+        onRetry: () -> Unit = {},
     ) {
         compose.setContent {
             LifeLensTheme {
@@ -51,6 +52,7 @@ class ResultsScreenTest {
                     onOpenPrices = onOpenPrices,
                     onToggleFavorite = onToggleFavorite,
                     onDelete = onDelete,
+                    onRetry = onRetry,
                 )
             }
         }
@@ -166,5 +168,24 @@ class ResultsScreenTest {
 
         compose.onNodeWithText("Transcribed text").assertExists()
         compose.onNodeWithText("bring the quarterly report", substring = true).assertExists()
+    }
+
+    @Test
+    fun `offline state shows the message and the last scan`() {
+        render(ResultsUiState.Offline(lastScan = sampleElectronics()))
+
+        compose.onNodeWithText("You're offline").assertExists()
+        compose.onNodeWithText("MacBook Air 13-inch").assertExists()
+        compose.onNodeWithText("Try again").assertExists()
+    }
+
+    @Test
+    fun `tapping try again on the offline state invokes onRetry`() {
+        var retried = false
+        render(ResultsUiState.Offline(lastScan = null), onRetry = { retried = true })
+
+        compose.onNodeWithText("Try again").performClick()
+
+        assertTrue(retried)
     }
 }

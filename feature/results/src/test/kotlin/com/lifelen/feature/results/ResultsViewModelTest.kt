@@ -5,8 +5,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import com.lifelen.core.common.result.DataResult
+import com.lifelen.core.data.connectivity.NetworkMonitor
 import com.lifelen.core.data.image.ImageStore
 import com.lifelen.core.data.session.ScanSession
+import java.io.IOException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -36,11 +38,13 @@ class ResultsViewModelTest {
         history: FakeHistoryRepository = FakeHistoryRepository(),
         scanSession: ScanSession = session(),
         scanId: String = "current",
+        networkMonitor: NetworkMonitor = FakeNetworkMonitor(online = true),
     ) = ResultsViewModel(
         scanRepository = scanRepo,
         historyRepository = history,
         settingsRepository = FakeSettingsRepository(),
         scanSession = scanSession,
+        networkMonitor = networkMonitor,
         savedStateHandle = SavedStateHandle(mapOf("scanId" to scanId)),
     )
 
@@ -210,5 +214,45 @@ class ResultsViewModelTest {
         }
         assertTrue(history.deletedIds.contains("del"))
         assertEquals(null, history.getScan("del"))
+    }
+
+    @Test
+    fun `offline fresh capture falls back to the last saved scan`() = runTest {
+        val history = FakeHistoryRepository(listOf(sampleElectronics(id = "last")))
+        val scanSession = session().apply { beginCapture(byteArrayOf(9)) }
+        val viewModel = vm(
+            FakeScanRepository(identifyResult = DataResult.Error(IOException("no network"))),
+            history = history,
+            scanSession = scanSession,
+            networkMonitor = FakeNetworkMonitor(online = false),
+        )
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state !is ResultsUiState.Offline) state = awaitItem()
+            assertEquals("last", (state as ResultsUiState.Offline).lastScan?.id)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `retry after reconnecting identifies successfully`() = runTest {
+        val monitor = FakeNetworkMonitor(online = false)
+        val scanRepo = FakeScanRepository(identifyResult = DataResult.Error(IOException("x")))
+        val scanSession = session().apply { beginCapture(byteArrayOf(1)) }
+        val viewModel = vm(scanRepo, scanSession = scanSession, networkMonitor = monitor)
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state !is ResultsUiState.Offline) state = awaitItem()
+
+            // Reconnect and let identification succeed.
+            monitor.online = true
+            scanRepo.identifyResult = DataResult.Success(sampleElectronics(id = "ok"))
+            viewModel.retry()
+            while (state !is ResultsUiState.Ready) state = awaitItem()
+            assertEquals("ok", (state as ResultsUiState.Ready).scan.id)
+            cancelAndConsumeRemainingEvents()
+        }
     }
 }

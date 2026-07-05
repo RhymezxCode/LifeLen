@@ -50,6 +50,7 @@ import com.lifelen.core.designsystem.theme.TextSecondary
 import com.lifelen.core.designsystem.theme.TitleStyle
 import com.lifelen.feature.results.components.DocumentResultBody
 import com.lifelen.feature.results.components.FoodResultBody
+import com.lifelen.core.model.Scan
 import com.lifelen.core.model.ScanCategory
 import com.lifelen.feature.results.components.IdentityHeader
 import com.lifelen.feature.results.components.PlantResultBody
@@ -99,6 +100,7 @@ fun ResultRoute(
         onOpenPrices = onOpenPrices,
         onToggleFavorite = viewModel::toggleFavorite,
         onDelete = viewModel::delete,
+        onRetry = viewModel::retry,
     )
 }
 
@@ -126,6 +128,7 @@ internal fun ResultsScreen(
     onOpenPrices: (String) -> Unit,
     onToggleFavorite: () -> Unit = {},
     onDelete: () -> Unit = {},
+    onRetry: () -> Unit = {},
 ) {
     val ready = uiState as? ResultsUiState.Ready
     val isSavedDetail = ready?.saved == true
@@ -216,6 +219,8 @@ internal fun ResultsScreen(
 
                 ResultsUiState.NotFound -> NotFoundContent(onBack)
 
+                is ResultsUiState.Offline -> OfflineContent(uiState.lastScan, onRetry)
+
                 is ResultsUiState.Ready -> {
                     IdentityHeader(uiState.scan)
                     val nutrition = uiState.scan.nutrition
@@ -292,5 +297,27 @@ private fun NotFoundContent(onBack: () -> Unit) {
         Text("This scan may have been deleted.", style = BodyStyle, color = TextSecondary)
         Spacer(Modifier.height(6.dp))
         LifeLensButton("Go back", onBack, Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun OfflineContent(lastScan: Scan?, onRetry: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("You're offline", style = TitleStyle, color = TextPrimary)
+        Text(
+            if (lastScan != null) {
+                "Showing your last saved scan — reconnect to identify something new."
+            } else {
+                "Connect to the internet to identify something new."
+            },
+            style = BodyStyle,
+            color = TextSecondary,
+        )
+        if (lastScan != null) {
+            Spacer(Modifier.height(6.dp))
+            IdentityHeader(lastScan)
+        }
+        Spacer(Modifier.height(6.dp))
+        LifeLensButton("Try again", onRetry, Modifier.fillMaxWidth())
     }
 }

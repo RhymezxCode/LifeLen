@@ -29,6 +29,12 @@ sealed interface ResultsUiState {
 
     /** A saved-detail scanId that no longer exists in the library. */
     data object NotFound : ResultsUiState
+
+    /**
+     * A fresh capture couldn't reach the network. Offers a retry and, if the library isn't empty,
+     * the most recent saved scan as a last-result fallback (Design Spec — offline handling).
+     */
+    data class Offline(val lastScan: Scan?) : ResultsUiState
 }
 
 /** One-shot effects the route reacts to. */

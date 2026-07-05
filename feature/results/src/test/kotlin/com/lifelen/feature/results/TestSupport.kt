@@ -1,6 +1,7 @@
 package com.lifelen.feature.results
 
 import com.lifelen.core.common.result.DataResult
+import com.lifelen.core.data.connectivity.NetworkMonitor
 import com.lifelen.core.data.model.ScanOptions
 import com.lifelen.core.data.repository.AppSettings
 import com.lifelen.core.data.repository.HistoryRepository
@@ -58,6 +59,11 @@ class FakeHistoryRepository(initial: List<Scan> = emptyList()) : HistoryReposito
     override suspend fun clearAll() {
         scans.value = emptyList()
     }
+}
+
+/** Toggleable connectivity for the offline-fallback tests. */
+class FakeNetworkMonitor(var online: Boolean = true) : NetworkMonitor {
+    override fun isOnline(): Boolean = online
 }
 
 /** A document [Scan] whose transcribed text lives in the "Text" attribute. */
