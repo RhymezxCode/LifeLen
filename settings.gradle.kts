@@ -41,5 +41,6 @@ include(":core:data")
 // Feature layer
 include(":feature:scanner")
 include(":feature:results")
+include(":feature:prices")
 include(":feature:history")
 include(":feature:settings")
