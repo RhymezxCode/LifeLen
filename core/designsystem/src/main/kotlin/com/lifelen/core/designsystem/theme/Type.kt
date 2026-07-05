@@ -2,9 +2,11 @@ package com.lifelen.core.designsystem.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.lifelen.core.designsystem.R
 
 /**
  * LifeLens type scale — Design Spec §2.2. Nine styles.
@@ -14,9 +16,14 @@ import androidx.compose.ui.unit.sp
  * build offline (no downloadable-font runtime dependency). To brand it further, drop Space Grotesk /
  * JetBrains Mono into res/font and set [displayFamily] / [monoFamily] below — nothing else changes.
  */
-private val displayFamily = FontFamily.Default
+// Space Grotesk (display) + JetBrains Mono (all measured/data values) bundled in res/font; the body
+// sans uses the system face as the Inter stand-in (matches the spec's guidance).
+private val displayFamily = FontFamily(Font(R.font.space_grotesk_medium, FontWeight.Medium))
 private val sansFamily = FontFamily.Default
-private val monoFamily = FontFamily.Monospace
+private val monoFamily = FontFamily(
+    Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
+    Font(R.font.jetbrains_mono_medium, FontWeight.Medium),
+)
 
 /** Screen titles, wordmark, empty-state headlines. */
 val Display = TextStyle(fontFamily = displayFamily, fontWeight = FontWeight.Medium, fontSize = 22.sp, lineHeight = 28.sp)
