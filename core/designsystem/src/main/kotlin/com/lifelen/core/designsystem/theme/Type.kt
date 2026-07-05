@@ -1,9 +1,13 @@
+@file:OptIn(ExperimentalTextApi::class)
+
 package com.lifelen.core.designsystem.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.lifelen.core.designsystem.R
@@ -11,15 +15,23 @@ import com.lifelen.core.designsystem.R
 /**
  * LifeLens type scale — Design Spec §2.2. Nine styles.
  *
- * Decision: system sans stands in for Inter/Space Grotesk, and [FontFamily.Monospace] backs every
- * `data-*` style — monospaced readouts are core to the "instrument" aesthetic and this keeps the
- * build offline (no downloadable-font runtime dependency). To brand it further, drop Space Grotesk /
- * JetBrains Mono into res/font and set [displayFamily] / [monoFamily] below — nothing else changes.
+ * The three bundled families match the mockups exactly: **Inter** (body/sans, via one variable TTF
+ * exposed at 400/500/600), **Space Grotesk** (display — screen/nav titles, wordmark, empty states),
+ * and **JetBrains Mono** (every `data-*` readout — the "instrument" aesthetic). All offline, no
+ * downloadable-font runtime dependency.
  */
-// Space Grotesk (display) + JetBrains Mono (all measured/data values) bundled in res/font; the body
-// sans uses the system face as the Inter stand-in (matches the spec's guidance).
+private fun inter(weight: FontWeight, axis: Int) = Font(
+    R.font.inter_variable,
+    weight = weight,
+    variationSettings = FontVariation.Settings(FontVariation.weight(axis)),
+)
+
 private val displayFamily = FontFamily(Font(R.font.space_grotesk_medium, FontWeight.Medium))
-private val sansFamily = FontFamily.Default
+private val sansFamily = FontFamily(
+    inter(FontWeight.Normal, 400),
+    inter(FontWeight.Medium, 500),
+    inter(FontWeight.SemiBold, 600),
+)
 private val monoFamily = FontFamily(
     Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
     Font(R.font.jetbrains_mono_medium, FontWeight.Medium),
@@ -27,6 +39,9 @@ private val monoFamily = FontFamily(
 
 /** Screen titles, wordmark, empty-state headlines. */
 val Display = TextStyle(fontFamily = displayFamily, fontWeight = FontWeight.Medium, fontSize = 22.sp, lineHeight = 28.sp)
+
+/** Top-bar / nav titles — the display face at reading size (HTML `--display` 17px/500). */
+val NavTitle = TextStyle(fontFamily = displayFamily, fontWeight = FontWeight.Medium, fontSize = 17.sp, lineHeight = 22.sp)
 
 /** Sheet titles, item names. */
 val TitleStyle = TextStyle(fontFamily = sansFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 22.sp)

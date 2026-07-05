@@ -15,6 +15,7 @@ import com.lifelen.core.designsystem.theme.DataSm
 import com.lifelen.core.designsystem.theme.LabelStyle
 import com.lifelen.core.designsystem.theme.LifeLensShapes
 import com.lifelen.core.designsystem.theme.Raised
+import com.lifelen.core.designsystem.theme.TextPrimary
 import com.lifelen.core.designsystem.theme.TextSecondary
 
 /** Mode / filter chip — selected = amber-tint fill + amber border + amber text (§3.1). */
@@ -27,7 +28,8 @@ fun ModeChip(
 ) {
     val fill = if (selected) AmberTint else Color.White.copy(alpha = 0.07f)
     val border = if (selected) Amber else Color.Transparent
-    val textColor = if (selected) Amber else TextSecondary
+    // Unselected label ≈ HTML #C6CCD6 in dark (a lightly-dimmed primary), theme-aware in light.
+    val textColor = if (selected) Amber else TextPrimary.copy(alpha = 0.82f)
     Text(
         text = text,
         style = LabelStyle,

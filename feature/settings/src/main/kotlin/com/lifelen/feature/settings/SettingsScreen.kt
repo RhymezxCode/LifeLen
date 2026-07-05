@@ -55,6 +55,7 @@ import com.lifelen.core.designsystem.theme.Raised2
 import com.lifelen.core.designsystem.theme.TextFaint
 import com.lifelen.core.designsystem.theme.TextPrimary
 import com.lifelen.core.designsystem.theme.TextSecondary
+import com.lifelen.core.designsystem.theme.NavTitle
 import com.lifelen.core.designsystem.theme.TitleStyle
 import com.lifelen.core.model.ThemeMode
 
@@ -104,7 +105,7 @@ internal fun SettingsScreen(
             MediaIconButton(LifeLensIcons.ChevronLeft, "Back", onBack)
             Text(
                 "Settings",
-                style = TitleStyle,
+                style = NavTitle,
                 color = TextPrimary,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f),

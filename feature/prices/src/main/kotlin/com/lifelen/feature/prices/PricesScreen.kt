@@ -54,7 +54,7 @@ import com.lifelen.core.designsystem.theme.Raised
 import com.lifelen.core.designsystem.theme.Raised2
 import com.lifelen.core.designsystem.theme.TextPrimary
 import com.lifelen.core.designsystem.theme.TextSecondary
-import com.lifelen.core.designsystem.theme.TitleStyle
+import com.lifelen.core.designsystem.theme.NavTitle
 import com.lifelen.core.model.BuyOption
 import com.lifelen.core.model.PriceCondition
 import com.lifelen.core.model.PriceInfo
@@ -177,7 +177,7 @@ private fun NavBar(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("Prices", style = TitleStyle, color = TextPrimary, maxLines = 1)
+            Text("Prices", style = NavTitle, color = TextPrimary, maxLines = 1)
             if (title.isNotBlank()) {
                 Text(title, style = CaptionStyle, color = TextSecondary, maxLines = 1)
             }
