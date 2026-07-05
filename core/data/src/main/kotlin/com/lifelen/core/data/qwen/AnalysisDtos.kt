@@ -23,6 +23,9 @@ data class NutritionDto(
     val protein: Double = 0.0,
     val carbs: Double = 0.0,
     val fat: Double = 0.0,
+    val fiber: Double = 0.0,
+    val sugars: Double = 0.0,
+    val sodium: Int = 0,
     val ingredients: List<String> = emptyList(),
     @SerialName("health_notes") val healthNotes: String? = null,
 )
@@ -32,6 +35,8 @@ data class PriceInfoDto(
     val currency: String = "USD",
     @SerialName("low_price") val lowPrice: Double = 0.0,
     @SerialName("high_price") val highPrice: Double = 0.0,
+    val average: Double = 0.0,
+    val source: String = "Google Shopping",
     val options: List<BuyOptionDto> = emptyList(),
     val disclaimer: String = "Prices are estimates from public listings and may be out of date.",
 )
@@ -43,4 +48,6 @@ data class BuyOptionDto(
     val currency: String = "USD",
     val url: String = "",
     @SerialName("in_stock") val inStock: Boolean = true,
+    val condition: String = "new",
+    val meta: String? = null,
 )

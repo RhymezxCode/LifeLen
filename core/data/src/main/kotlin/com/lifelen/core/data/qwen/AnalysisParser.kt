@@ -3,6 +3,7 @@ package com.lifelen.core.data.qwen
 import com.lifelen.core.model.BuyOption
 import com.lifelen.core.model.Identification
 import com.lifelen.core.model.NutritionInfo
+import com.lifelen.core.model.PriceCondition
 import com.lifelen.core.model.PriceInfo
 import com.lifelen.core.model.ScanCategory
 import kotlinx.serialization.json.Json
@@ -41,11 +42,27 @@ class AnalysisParser @Inject constructor(
             currency = dto.currency,
             lowPrice = dto.lowPrice,
             highPrice = dto.highPrice,
+            average = dto.average,
+            source = dto.source,
             options = dto.options.map {
-                BuyOption(it.retailer, it.price, it.currency, it.url, it.inStock)
+                BuyOption(
+                    retailer = it.retailer,
+                    price = it.price,
+                    currency = it.currency,
+                    url = it.url,
+                    inStock = it.inStock,
+                    condition = parseCondition(it.condition),
+                    meta = it.meta,
+                )
             },
             disclaimer = dto.disclaimer,
         )
+    }
+
+    private fun parseCondition(raw: String): PriceCondition = when (raw.trim().lowercase()) {
+        "renewed", "refurbished", "refurb" -> PriceCondition.RENEWED
+        "used", "pre-owned", "preowned" -> PriceCondition.USED
+        else -> PriceCondition.NEW
     }
 
     private fun NutritionDto.toDomain() = NutritionInfo(
@@ -54,6 +71,9 @@ class AnalysisParser @Inject constructor(
         protein = protein,
         carbs = carbs,
         fat = fat,
+        fiber = fiber,
+        sugars = sugars,
+        sodium = sodium,
         ingredients = ingredients,
         healthNotes = healthNotes,
     )

@@ -22,6 +22,7 @@ class ScanMapper @Inject constructor(
         priceJson = scan.price?.let { json.encodeToString<PriceInfo>(it) },
         createdAt = scan.createdAt,
         isFavorite = scan.isFavorite,
+        previousLowPrice = scan.previousLowPrice,
     )
 
     fun toDomain(entity: ScanEntity): Scan = Scan(
@@ -32,5 +33,6 @@ class ScanMapper @Inject constructor(
         price = entity.priceJson?.let { json.decodeFromString<PriceInfo>(it) },
         createdAt = entity.createdAt,
         isFavorite = entity.isFavorite,
+        previousLowPrice = entity.previousLowPrice,
     )
 }

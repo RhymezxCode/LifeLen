@@ -15,17 +15,20 @@ object QwenPrompts {
           "title": string,                       // concise product/subject name
           "category": string,                    // one of: food, electronics, book, clothing, plant, animal, landmark, document, generic
           "summary": string,                     // 1-2 sentence description
-          "confidence": number,                  // 0.0 - 1.0
-          "attributes": { string: string },      // salient specs/facts (brand, model, author, material, dimensions, ...)
+          "confidence": number,                  // 0.0 - 1.0, honest match confidence
+          "attributes": { string: string },      // ordered salient specs. For electronics ALWAYS try to
+                                                  // include keys "Chip","Memory","Storage","Display" first,
+                                                  // then more (Battery, Ports, Year). For books: Author, Year,
+                                                  // Pages, Rating. Keep values short (e.g. "8 GB", "256 GB").
           "tags": [string],                       // searchable keywords
           "search_query": string,                 // a query to find this item for sale online (omit for non-products)
           "nutrition": {                           // ONLY when category == food, else omit
-            "serving_size": string,
+            "serving_size": string,                // e.g. "1 plate · ~350 g"
             "calories": number,
-            "protein": number,
-            "carbs": number,
-            "fat": number,
-            "ingredients": [string],
+            "protein": number, "carbs": number, "fat": number,   // grams
+            "fiber": number, "sugars": number,     // grams
+            "sodium": number,                      // milligrams
+            "ingredients": [string],               // detected components (rice, chicken, sauce)
             "health_notes": string
           }
         }
@@ -41,16 +44,26 @@ object QwenPrompts {
         Schema:
         {
           "currency": string,
-          "low_price": number,
+          "low_price": number,                     // lowest NEW price
           "high_price": number,
+          "average": number,                       // average NEW price
+          "source": string,                        // e.g. "Google Shopping"
           "options": [
-            { "retailer": string, "price": number, "currency": string, "url": string, "in_stock": boolean }
+            {
+              "retailer": string,
+              "price": number,
+              "currency": string,
+              "url": string,
+              "in_stock": boolean,
+              "condition": string,                 // "new" | "renewed" | "used"
+              "meta": string                       // short seller note, e.g. "Free shipping · in stock"
+            }
           ],
           "disclaimer": string
         }
 
-        Only include options you can support from the results. If there is not enough data, return
-        empty options with low_price and high_price set to 0.
+        Sort options ascending by price within each condition. Only include options you can support
+        from the results. If there is not enough data, return empty options with prices set to 0.
     """.trimIndent()
 
     fun priceUserPrompt(productTitle: String, resultsBlock: String): String = """

@@ -49,4 +49,38 @@ class AnalysisParserTest {
         val raw = """{"currency":"USD","low_price":0,"high_price":0,"options":[]}"""
         assertNull(parser.parsePrice(raw))
     }
+
+    @Test
+    fun `parses full nutrition fields`() {
+        val raw = """
+            {"title":"Jollof rice","category":"food","confidence":0.8,
+             "nutrition":{"serving_size":"1 plate","calories":540,"protein":28,"carbs":62,"fat":19,
+                          "fiber":4,"sugars":6,"sodium":890,"ingredients":["rice","chicken","sauce"]}}
+        """.trimIndent()
+        val n = parser.parseAnalysis(raw).nutrition!!
+        assertEquals(4.0, n.fiber, 0.001)
+        assertEquals(6.0, n.sugars, 0.001)
+        assertEquals(890, n.sodium)
+        assertEquals(listOf("rice", "chicken", "sauce"), n.ingredients)
+    }
+
+    @Test
+    fun `parses price with conditions, meta and average`() {
+        val raw = """
+            {"currency":"$","low_price":849,"high_price":999,"average":967,"source":"Google Shopping",
+             "options":[
+               {"retailer":"Amazon","price":849,"currency":"$","url":"a","in_stock":true,"condition":"new","meta":"Free shipping · in stock"},
+               {"retailer":"eBay","price":699,"currency":"$","url":"b","condition":"renewed","meta":"1 yr warranty"}
+             ]}
+        """.trimIndent()
+        val price = parser.parsePrice(raw)!!
+        assertEquals(967.0, price.average, 0.001)
+        assertEquals("Google Shopping", price.source)
+        assertEquals(2, price.options.size)
+        val amazon = price.options.first { it.retailer == "Amazon" }
+        assertEquals(com.lifelen.core.model.PriceCondition.NEW, amazon.condition)
+        assertEquals("Free shipping · in stock", amazon.meta)
+        assertEquals(com.lifelen.core.model.PriceCondition.RENEWED, price.options.first { it.retailer == "eBay" }.condition)
+        assertEquals(1, price.sellerCount) // only Amazon is NEW
+    }
 }
