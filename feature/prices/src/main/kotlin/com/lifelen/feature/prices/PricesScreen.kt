@@ -372,7 +372,7 @@ private fun PriceList(
 
         item(key = "footnote") {
             SourceFootnote(
-                text = "Via ${price.source} · prices are estimates",
+                text = price.footnote(),
                 modifier = Modifier.padding(top = 16.dp),
             )
         }
@@ -455,6 +455,14 @@ private fun GroupHeader(text: String, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .padding(top = 14.dp, bottom = 4.dp),
     )
+}
+
+private val updatedTimeFormat = java.text.SimpleDateFormat("HH:mm", Locale.getDefault())
+
+/** "Via {source} · updated HH:mm" when the price carries a fetch time, else a plain estimate note. */
+private fun PriceInfo.footnote(): String {
+    val updated = fetchedAt?.let { " · updated ${updatedTimeFormat.format(java.util.Date(it))}" } ?: " · estimate"
+    return "Via $source$updated"
 }
 
 /** Whole number → no decimals; otherwise two decimal places. */

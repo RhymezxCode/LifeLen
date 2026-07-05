@@ -226,10 +226,18 @@ internal fun ProductResultBody(
         }
         Spacer(Modifier.height(14.dp))
         SourceFootnote(
-            text = scan.price?.let { "Prices via ${it.source}" } ?: "Identified moments ago",
+            text = scan.price?.footnote() ?: "Identified moments ago",
         )
         Spacer(Modifier.height(14.dp))
     }
+}
+
+private val updatedTimeFormat = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+
+/** "Prices via {source} · updated HH:mm" when the price carries a fetch time, else a plain note. */
+private fun PriceInfo.footnote(): String {
+    val updated = fetchedAt?.let { " · updated ${updatedTimeFormat.format(java.util.Date(it))}" } ?: " · estimate"
+    return "Prices via $source$updated"
 }
 
 /**

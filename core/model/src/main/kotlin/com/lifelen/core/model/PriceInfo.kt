@@ -32,6 +32,8 @@ data class PriceInfo(
     val source: String = "Google Shopping",
     val options: List<BuyOption> = emptyList(),
     val disclaimer: String = "Prices are estimates from public listings and may be out of date.",
+    /** Epoch millis when this pricing was fetched/synthesised; drives the "updated HH:mm" footnote. */
+    val fetchedAt: Long? = null,
 ) {
     /** Sellers offering the item new (drives the "{n} sellers" pill and summary). */
     val sellerCount: Int get() = options.count { it.condition == PriceCondition.NEW }.takeIf { it > 0 } ?: options.size

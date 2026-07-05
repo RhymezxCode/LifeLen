@@ -33,6 +33,6 @@ class PricingSynthesizer @Inject constructor(
                 QwenPrompts.priceUserPrompt(identification.title, resultsBlock),
             )
         }.getOrNull() ?: return null
-        return parser.parsePrice(raw)
+        return parser.parsePrice(raw)?.copy(fetchedAt = System.currentTimeMillis())
     }
 }
