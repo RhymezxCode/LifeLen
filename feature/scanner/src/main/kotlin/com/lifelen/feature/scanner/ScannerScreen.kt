@@ -228,6 +228,16 @@ private fun CameraHome(
             modifier = Modifier.fillMaxSize(),
         )
 
+        // Signature viewfinder framing brackets — a searching guide (pulsing) until the shutter fires.
+        if (!uiState.isCapturing) {
+            DetectionBrackets(
+                state = DetectionState.Searching,
+                modifier = Modifier
+                    .align(BiasAlignment(0f, -0.08f))
+                    .size(width = 256.dp, height = 176.dp),
+            )
+        }
+
         // Top controls (y ≈ 54, 16dp gutters).
         Row(
             modifier = Modifier

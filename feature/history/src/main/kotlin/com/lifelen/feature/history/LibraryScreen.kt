@@ -182,6 +182,7 @@ internal fun LibraryScreen(
                                 scan = scan,
                                 onClick = { onOpenScan(scan.id) },
                                 showDivider = index < group.scans.lastIndex,
+                                modifier = Modifier.animateItem(),
                             )
                         }
                     }
@@ -211,8 +212,13 @@ private fun GroupHeader(text: String) {
 }
 
 @Composable
-private fun LibraryRow(scan: Scan, onClick: () -> Unit, showDivider: Boolean = true) {
-    Column {
+private fun LibraryRow(
+    scan: Scan,
+    onClick: () -> Unit,
+    showDivider: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
