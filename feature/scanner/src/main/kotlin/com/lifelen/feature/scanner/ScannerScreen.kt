@@ -1,7 +1,11 @@
 package com.lifelen.feature.scanner
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,15 +29,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
@@ -46,8 +53,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -115,15 +125,50 @@ internal fun ScannerScreen(
     onOpenSettings: () -> Unit,
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var hasPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                 PackageManager.PERMISSION_GRANTED,
         )
     }
+    var requestedOnce by rememberSaveable { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted -> hasPermission = granted }
+
+    // Re-check on resume so granting from the system Settings screen updates the UI on return.
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                    PackageManager.PERMISSION_GRANTED
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Re-prompt on demand; once the OS won't show the dialog anymore (permanently denied), deep-link
+    // the user to the app's Settings so they can still grant camera access.
+    val requestCameraAccess: () -> Unit = {
+        val activity = context as? Activity
+        val permanentlyDenied = requestedOnce && activity != null &&
+            !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)
+        if (permanentlyDenied) {
+            runCatching {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", context.packageName, null),
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+        } else {
+            requestedOnce = true
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
 
     // Gallery import — reuses the same identify pipeline as a camera capture (Spec S01/S02).
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -140,7 +185,7 @@ internal fun ScannerScreen(
 
     // Auto-prompt the first time the screen appears without permission.
     LaunchedEffect(Unit) {
-        if (!hasPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
+        if (!hasPermission) requestCameraAccess()
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -173,7 +218,7 @@ internal fun ScannerScreen(
                 )
             } else {
                 PermissionPrime(
-                    onEnable = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                    onEnable = requestCameraAccess,
                     onImportGallery = onPickGallery,
                 )
             }
@@ -202,6 +247,8 @@ private fun CameraHome(
     LaunchedEffect(controller, lifecycleOwner) {
         controller.bindToLifecycle(lifecycleOwner)
     }
+
+    var torchOn by remember { mutableStateOf(false) }
 
     fun capture() {
         if (uiState.isCapturing) return
@@ -246,7 +293,15 @@ private fun CameraHome(
                 .padding(top = 54.dp, start = 16.dp, end = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            MediaIconButton(LifeLensIcons.Flash, "Flash", {})
+            MediaIconButton(
+                icon = LifeLensIcons.Flash,
+                contentDescription = if (torchOn) "Turn flash off" else "Turn flash on",
+                onClick = {
+                    torchOn = !torchOn
+                    runCatching { controller.enableTorch(torchOn) }
+                },
+                active = torchOn,
+            )
             MediaIconButton(LifeLensIcons.Settings, "Settings", onOpenSettings)
         }
 
@@ -357,7 +412,7 @@ private fun LibraryThumb(
     count: Int,
     onOpenLibrary: () -> Unit,
 ) {
-    Box(modifier = Modifier.clickableEnabled(true, onOpenLibrary)) {
+    Box(modifier = Modifier.size(42.dp).clickableEnabled(true, onOpenLibrary)) {
         BracketThumb(size = 42.dp) {
             if (thumbPath != null) {
                 AsyncImage(
@@ -367,7 +422,14 @@ private fun LibraryThumb(
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                Box(Modifier.fillMaxSize().background(Raised))
+                Box(Modifier.fillMaxSize().background(Raised), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = LifeLensIcons.Gallery,
+                        contentDescription = "Open library",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
         if (count > 0) {

@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lifelen.core.designsystem.theme.Amber
+import com.lifelen.core.designsystem.theme.AmberTint
 import com.lifelen.core.designsystem.theme.BodyStyle
 import com.lifelen.core.designsystem.theme.LifeLensShapes
 import com.lifelen.core.designsystem.theme.MediaControlFill
@@ -92,17 +93,23 @@ fun MediaIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: Int = 38,
+    active: Boolean = false,
 ) {
     Box(
         modifier = modifier
             .size(size.dp)
             .clip(CircleShape)
-            .background(MediaControlFill)
+            .background(if (active) AmberTint else MediaControlFill)
             .clickableEnabled(true, onClick)
             .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(18.dp))
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (active) Amber else TextPrimary,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
