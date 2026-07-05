@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+
+        <!-- 1. Quick Scan — small 1x1 launcher tile. -->
+        <receiver
+            android:name=".QuickScanWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_quick_scan_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quick_scan_info" />
+        </receiver>
+
+        <!-- 2. Last Scan — wide 4x1 most-recent scan summary. -->
+        <receiver
+            android:name=".LastScanWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_last_scan_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/last_scan_info" />
+        </receiver>
+
+        <!-- 3. Library Stats — wide 4x1 totals. -->
+        <receiver
+            android:name=".LibraryStatsWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_library_stats_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/library_stats_info" />
+        </receiver>
+
+        <!-- 4. Daily Calories — medium 2x2 food total. -->
+        <receiver
+            android:name=".DailyCaloriesWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_daily_calories_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/daily_calories_info" />
+        </receiver>
+
+        <!-- 5. Price Watch — medium 2x2 price tracker. -->
+        <receiver
+            android:name=".PriceWatchWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_price_watch_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/price_watch_info" />
+        </receiver>
+
+    </application>
+
+</manifest>

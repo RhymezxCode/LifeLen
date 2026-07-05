@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_quick_scan_label">LifeLens Quick Scan</string>
+    <string name="widget_last_scan_label">LifeLens Last Scan</string>
+    <string name="widget_library_stats_label">LifeLens Library</string>
+    <string name="widget_daily_calories_label">LifeLens Calories</string>
+    <string name="widget_price_watch_label">LifeLens Price Watch</string>
+</resources>
