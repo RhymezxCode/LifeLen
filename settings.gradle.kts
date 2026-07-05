@@ -21,6 +21,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // SimpleStore (RhymezxCode/SimpleStore) is published via JitPack.
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

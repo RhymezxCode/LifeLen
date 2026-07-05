@@ -17,6 +17,7 @@ activityCompose = "1.13.0"
 composeBom = "2026.02.01"
 navigationCompose = "2.9.5"
 datastore = "1.1.7"
+simplestore = "1.1.2"
 room = "2.8.2"
 camerax = "1.5.0"
 
@@ -74,6 +75,8 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 
 # --- DataStore ---
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+# On-device key/value storage wrapper (RhymezxCode/SimpleStore) — backs :core:datastore.
+simplestore = { group = "com.github.RhymezxCode", name = "SimpleStore", version.ref = "simplestore" }
 
 # --- CameraX ---
 androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
