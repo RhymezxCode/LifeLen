@@ -2,6 +2,7 @@ package com.lifelen.core.data.repository
 
 import com.lifelen.core.common.di.Dispatcher
 import com.lifelen.core.common.di.LifelenDispatcher
+import com.lifelen.core.common.network.ApiKeyProvider
 import com.lifelen.core.common.result.DataResult
 import com.lifelen.core.data.handler.CategoryHandlerRegistry
 import com.lifelen.core.data.model.ScanOptions
@@ -9,9 +10,12 @@ import com.lifelen.core.data.qwen.AnalysisParser
 import com.lifelen.core.data.qwen.QwenPrompts
 import com.lifelen.core.data.session.CaptureDraft
 import com.lifelen.core.database.ScanDao
+import com.lifelen.core.model.Identification
 import com.lifelen.core.model.Scan
+import com.lifelen.core.model.ScanCategory
 import com.lifelen.core.network.QwenClient
 import com.lifelen.core.network.util.ImageEncoder
+import com.lifelen.core.network.vision.LocalVisionLabeler
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -38,6 +42,8 @@ class DefaultScanRepository @Inject constructor(
     private val registry: CategoryHandlerRegistry,
     private val mapper: ScanMapper,
     private val scanDao: ScanDao,
+    private val apiKeyProvider: ApiKeyProvider,
+    private val localVisionLabeler: LocalVisionLabeler,
     @Dispatcher(LifelenDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : ScanRepository {
 
@@ -46,6 +52,10 @@ class DefaultScanRepository @Inject constructor(
         options: ScanOptions,
     ): DataResult<Scan> = withContext(ioDispatcher) {
         try {
+            // No DashScope key → fall back to on-device labelling (ML Kit) for a basic identification.
+            if (apiKeyProvider.dashScopeApiKey().isBlank()) {
+                return@withContext localIdentify(draft)
+            }
             val dataUrl = imageEncoder.toDataUrl(draft.bytes)
             val raw = qwenClient.analyzeImage(
                 imageDataUrl = dataUrl,
@@ -70,6 +80,28 @@ class DefaultScanRepository @Inject constructor(
         } catch (e: Exception) {
             DataResult.Error(e)
         }
+    }
+
+    /** On-device identification when no Qwen key is set — a generic label, no specs/price/nutrition. */
+    private suspend fun localIdentify(draft: CaptureDraft): DataResult<Scan> {
+        val labels = localVisionLabeler.label(draft.bytes)
+        val top = labels.firstOrNull()
+            ?: return DataResult.Error(IllegalStateException("Couldn't identify this on-device."))
+        val identification = Identification(
+            title = top.text,
+            category = ScanCategory.GENERIC,
+            summary = "Identified on-device. Add a DashScope key in Settings for specs, price and nutrition.",
+            confidence = top.confidence,
+            tags = labels.take(5).map { it.text },
+        )
+        return DataResult.Success(
+            Scan(
+                id = draft.id,
+                imagePath = draft.imagePath,
+                identification = identification,
+                createdAt = System.currentTimeMillis(),
+            ),
+        )
     }
 
     override suspend fun save(scan: Scan) = withContext(ioDispatcher) {

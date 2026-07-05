@@ -15,6 +15,7 @@ import com.lifelen.core.model.Scan
 import com.lifelen.core.model.ScanCategory
 import com.lifelen.core.network.QwenClient
 import com.lifelen.core.network.util.ImageEncoder
+import com.lifelen.core.network.vision.LocalLabel
 import com.lifelen.core.search.SearchClient
 import com.lifelen.core.search.SearchResult
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -61,7 +62,11 @@ class DefaultScanRepositoryTest {
     private lateinit var dao: FakeScanDao
     private lateinit var repo: DefaultScanRepository
 
-    private fun buildRepo(qwenClient: FakeQwenClient): DefaultScanRepository {
+    private fun buildRepo(
+        qwenClient: FakeQwenClient,
+        dashKey: String = "K",
+        labels: List<LocalLabel> = emptyList(),
+    ): DefaultScanRepository {
         val pricing = PricingSynthesizer(FakeSearchClient(), qwenClient, parser)
         val registry = CategoryHandlerRegistry(
             setOf(GenericHandler(), FoodHandler(), ElectronicsHandler(pricing)),
@@ -73,8 +78,21 @@ class DefaultScanRepositoryTest {
             registry = registry,
             mapper = mapper,
             scanDao = dao,
+            apiKeyProvider = FakeApiKeyProvider(dashKey),
+            localVisionLabeler = FakeLocalVisionLabeler(labels),
             ioDispatcher = UnconfinedTestDispatcher(),
         )
+    }
+
+    private class FakeApiKeyProvider(private val dash: String) :
+        com.lifelen.core.common.network.ApiKeyProvider {
+        override suspend fun dashScopeApiKey(): String = dash
+        override suspend fun searchApiKey(): String = ""
+    }
+
+    private class FakeLocalVisionLabeler(private val labels: List<LocalLabel>) :
+        com.lifelen.core.network.vision.LocalVisionLabeler {
+        override suspend fun label(jpeg: ByteArray): List<LocalLabel> = labels
     }
 
     @Before
@@ -137,6 +155,31 @@ class DefaultScanRepositoryTest {
         val result = failingRepo.identify(draft, ScanOptions(pricingEnabled = true))
         assertTrue(result is DataResult.Error)
         assertEquals("network down", (result as DataResult.Error).throwable.message)
+    }
+
+    @Test
+    fun `identify falls back to on-device labels when no Qwen key is set`() = runTest {
+        val repo = buildRepo(
+            FakeQwenClient(onAnalyze = { throw IllegalStateException("should not be called") }),
+            dashKey = "",
+            labels = listOf(LocalLabel("Laptop", 0.91f), LocalLabel("Computer", 0.7f)),
+        )
+
+        val result = repo.identify(draft, ScanOptions(pricingEnabled = true))
+
+        assertTrue(result is DataResult.Success)
+        val scan = (result as DataResult.Success).data
+        assertEquals("Laptop", scan.title)
+        assertEquals(ScanCategory.GENERIC, scan.category)
+    }
+
+    @Test
+    fun `identify errors when offline fallback finds no on-device labels`() = runTest {
+        val repo = buildRepo(FakeQwenClient(), dashKey = "", labels = emptyList())
+
+        val result = repo.identify(draft, ScanOptions(pricingEnabled = true))
+
+        assertTrue(result is DataResult.Error)
     }
 
     private companion object {

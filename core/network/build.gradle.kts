@@ -12,6 +12,8 @@ android {
 dependencies {
     implementation(project(":core:common"))
 
+    implementation(libs.mlkit.image.labeling)
+
     implementation(libs.retrofit.core)
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(platform(libs.okhttp.bom))
