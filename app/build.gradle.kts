@@ -36,6 +36,7 @@ dependencies {
 
     implementation(project(":feature:scanner"))
     implementation(project(":feature:results"))
+    implementation(project(":feature:prices"))
     implementation(project(":feature:history"))
     implementation(project(":feature:settings"))
 

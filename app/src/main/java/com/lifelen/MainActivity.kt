@@ -4,13 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
+import com.lifelen.core.designsystem.theme.Chamber
 import com.lifelen.core.designsystem.theme.LifeLensTheme
 import com.lifelen.navigation.LifeLensNavHost
 import dagger.hilt.android.AndroidEntryPoint
@@ -27,11 +27,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun LifeLensApp() {
-    val viewModel: MainViewModel = hiltViewModel()
-    val darkTheme by viewModel.darkTheme.collectAsStateWithLifecycle()
-
-    LifeLensTheme(darkTheme = darkTheme ?: isSystemInDarkTheme()) {
+    LifeLensTheme {
         val navController = rememberNavController()
-        LifeLensNavHost(navController = navController)
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Chamber)) {
+            LifeLensNavHost(navController = navController)
+        }
     }
 }

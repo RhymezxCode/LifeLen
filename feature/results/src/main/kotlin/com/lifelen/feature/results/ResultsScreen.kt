@@ -1,224 +1,260 @@
 package com.lifelen.feature.results
 
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.lifelen.core.designsystem.component.MessageState
-import com.lifelen.core.model.NutritionInfo
-import com.lifelen.core.model.PriceInfo
-import com.lifelen.core.model.Scan
-import androidx.compose.material.icons.filled.SearchOff
+import com.lifelen.core.designsystem.LifeLensIcons
+import com.lifelen.core.designsystem.component.LifeLensButton
+import com.lifelen.core.designsystem.component.MediaIconButton
+import com.lifelen.core.designsystem.component.SheetGrabber
+import com.lifelen.core.designsystem.theme.Body
+import com.lifelen.core.designsystem.theme.BodyStyle
+import com.lifelen.core.designsystem.theme.Chamber
+import com.lifelen.core.designsystem.theme.LabelStyle
+import com.lifelen.core.designsystem.theme.LifeLensShapes
+import com.lifelen.core.designsystem.theme.Raised
+import com.lifelen.core.designsystem.theme.SubtleBorder
+import com.lifelen.core.designsystem.theme.TextPrimary
+import com.lifelen.core.designsystem.theme.TextSecondary
+import com.lifelen.core.designsystem.theme.TitleStyle
+import com.lifelen.feature.results.components.FoodResultBody
+import com.lifelen.feature.results.components.IdentityHeader
+import com.lifelen.feature.results.components.ProductResultBody
+import com.lifelen.feature.results.components.ResultSkeleton
+import kotlinx.coroutines.delay
 import java.io.File
 
+/** Height of the frozen capture the result sheet sits over (Design Spec §3.3). */
+private val CaptureHeight = 338.dp
+
 @Composable
-fun ResultsRoute(
+fun ResultRoute(
     onBack: () -> Unit,
+    onOpenPrices: (String) -> Unit,
     viewModel: ResultsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    ResultsScreen(uiState = uiState, onBack = onBack, onToggleFavorite = viewModel::toggleFavorite)
+    val capturedImagePath by viewModel.capturedImagePath.collectAsStateWithLifecycle()
+    var savedPillVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                ResultEvent.Saved -> savedPillVisible = true
+                ResultEvent.Retake -> onBack()
+            }
+        }
+    }
+    LaunchedEffect(savedPillVisible) {
+        if (savedPillVisible) {
+            delay(2200)
+            savedPillVisible = false
+        }
+    }
+
+    ResultsScreen(
+        uiState = uiState,
+        capturedImagePath = capturedImagePath,
+        savedPillVisible = savedPillVisible,
+        onBack = onBack,
+        onRetake = viewModel::retake,
+        onRefresh = viewModel::refresh,
+        onSave = viewModel::save,
+        onSetPortion = viewModel::setPortion,
+        onOpenPrices = onOpenPrices,
+    )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Backwards-compatible entry point used by the app NavHost, which does not (yet) route to the
+ * standalone prices screen. Delegates to [ResultRoute].
+ */
+@Composable
+fun ResultsRoute(
+    onBack: () -> Unit,
+    onOpenPrices: (String) -> Unit = {},
+    viewModel: ResultsViewModel = hiltViewModel(),
+) = ResultRoute(onBack = onBack, onOpenPrices = onOpenPrices, viewModel = viewModel)
+
 @Composable
 internal fun ResultsScreen(
     uiState: ResultsUiState,
+    capturedImagePath: String?,
+    savedPillVisible: Boolean,
     onBack: () -> Unit,
-    onToggleFavorite: () -> Unit,
+    onRetake: () -> Unit,
+    onRefresh: () -> Unit,
+    onSave: () -> Unit,
+    onSetPortion: (Float) -> Unit,
+    onOpenPrices: (String) -> Unit,
 ) {
-    val scan = (uiState as? ResultsUiState.Success)?.scan
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(scan?.title ?: "Result") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    if (scan != null) {
-                        IconButton(onClick = onToggleFavorite) {
-                            Icon(
-                                imageVector = if (scan.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                contentDescription = "Toggle favorite",
-                            )
-                        }
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        when (uiState) {
-            ResultsUiState.Loading -> com.lifelen.core.designsystem.component.LoadingState(
-                modifier = Modifier.padding(padding),
-                message = "Loading…",
-            )
+    val isSavedDetail = (uiState as? ResultsUiState.Ready)?.saved == true
 
-            ResultsUiState.NotFound -> MessageState(
-                modifier = Modifier.padding(padding),
-                icon = Icons.Filled.SearchOff,
-                title = "Scan not found",
-                description = "This scan may have been deleted.",
-                actionLabel = "Go back",
-                onAction = onBack,
-            )
-
-            is ResultsUiState.Success -> ResultsContent(
-                scan = uiState.scan,
-                modifier = Modifier.padding(padding),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ResultsContent(scan: Scan, modifier: Modifier = Modifier) {
-    LazyColumn(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Chamber),
     ) {
-        item {
-            AsyncImage(
-                model = File(scan.imagePath),
-                contentDescription = scan.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1.4f),
+        // Frozen capture + dimming scrim.
+        Box(
+            Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(CaptureHeight),
+        ) {
+            if (capturedImagePath != null) {
+                AsyncImage(
+                    model = File(capturedImagePath),
+                    contentDescription = "Captured frame",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Box(Modifier.fillMaxSize().background(Body))
+            }
+            Box(Modifier.matchParentSize().background(Color(0x73000000)))
+        }
+
+        // Capture controls over the frame.
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            MediaIconButton(
+                icon = LifeLensIcons.Close,
+                contentDescription = "Close",
+                onClick = onBack,
+            )
+            MediaIconButton(
+                icon = LifeLensIcons.Refresh,
+                contentDescription = if (isSavedDetail) "Refresh price" else "Retake",
+                onClick = if (isSavedDetail) onRefresh else onRetake,
             )
         }
-        item {
-            Column {
-                Text(scan.title, style = MaterialTheme.typography.headlineSmall)
-                Text(
-                    text = scan.category.name.lowercase().replaceFirstChar { it.uppercase() },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                if (scan.identification.summary.isNotBlank()) {
-                    Text(
-                        text = scan.identification.summary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+
+        // Result sheet.
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .fillMaxHeight(0.62f)
+                .clip(LifeLensShapes.sheet)
+                .background(Body)
+                .border(1.dp, SubtleBorder, LifeLensShapes.sheet)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(top = 12.dp, bottom = 20.dp),
+        ) {
+            SheetGrabber(
+                Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(bottom = 16.dp),
+            )
+            when (uiState) {
+                ResultsUiState.Processing -> ResultSkeleton()
+
+                is ResultsUiState.Failed -> FailedContent(uiState.message, onBack)
+
+                ResultsUiState.NotFound -> NotFoundContent(onBack)
+
+                is ResultsUiState.Ready -> {
+                    IdentityHeader(uiState.scan)
+                    val nutrition = uiState.scan.nutrition
+                    if (nutrition != null) {
+                        FoodResultBody(
+                            scan = uiState.scan,
+                            nutrition = nutrition,
+                            portionFactor = uiState.portionFactor,
+                            saved = uiState.saved,
+                            onSave = onSave,
+                            onSetPortion = onSetPortion,
+                        )
+                    } else {
+                        ProductResultBody(
+                            scan = uiState.scan,
+                            saved = uiState.saved,
+                            onSave = onSave,
+                            onOpenPrices = onOpenPrices,
+                        )
+                    }
                 }
             }
         }
 
-        if (scan.identification.attributes.isNotEmpty()) {
-            item { SectionCard(title = "Details") { AttributeList(scan.identification.attributes) } }
-        }
-        scan.nutrition?.let { nutrition ->
-            item { SectionCard(title = "Nutrition") { NutritionBlock(nutrition) } }
-        }
-        scan.price?.let { price ->
-            item { SectionCard(title = "Pricing & where to buy") { PriceBlock(price) } }
-        }
-    }
-}
-
-@Composable
-private fun SectionCard(title: String, content: @Composable () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            content()
-        }
-    }
-}
-
-@Composable
-private fun AttributeList(attributes: Map<String, String>) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        attributes.forEach { (key, value) ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(key, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-            }
-        }
-    }
-}
-
-@Composable
-private fun NutritionBlock(nutrition: NutritionInfo) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("${nutrition.calories} kcal · ${nutrition.servingSize}", style = MaterialTheme.typography.titleLarge)
-        Text(
-            "Protein ${nutrition.protein}g · Carbs ${nutrition.carbs}g · Fat ${nutrition.fat}g",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        nutrition.healthNotes?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun PriceBlock(price: PriceInfo) {
-    val uriHandler = LocalUriHandler.current
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (price.highPrice > 0) {
-            Text(
-                "${price.currency} ${price.lowPrice} – ${price.highPrice}",
-                style = MaterialTheme.typography.titleLarge,
-            )
-        }
-        price.options.forEach { option ->
+        // "Saved to library" confirmation pill.
+        AnimatedVisibility(
+            visible = savedPillVisible,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 12.dp),
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { runCatching { uriHandler.openUri(option.url) } }
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                Modifier
+                    .clip(LifeLensShapes.chip)
+                    .background(Raised)
+                    .border(1.dp, SubtleBorder, LifeLensShapes.chip)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
-                Text(option.retailer, style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    "${option.currency} ${option.price}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                Text("Saved to library", style = LabelStyle, color = TextPrimary)
             }
         }
-        Text(
-            price.disclaimer,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
-        )
+    }
+}
+
+@Composable
+private fun FailedContent(message: String, onBack: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Couldn't identify this", style = TitleStyle, color = TextPrimary)
+        Text(message, style = BodyStyle, color = TextSecondary)
+        Spacer(Modifier.height(6.dp))
+        LifeLensButton("Retake", onBack, Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun NotFoundContent(onBack: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Scan not found", style = TitleStyle, color = TextPrimary)
+        Text("This scan may have been deleted.", style = BodyStyle, color = TextSecondary)
+        Spacer(Modifier.height(6.dp))
+        LifeLensButton("Go back", onBack, Modifier.fillMaxWidth())
     }
 }
