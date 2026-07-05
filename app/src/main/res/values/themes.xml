@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base window theme shown before Compose draws. Compose (Material 3) owns real styling. -->
+    <style name="Theme.LifeLens" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
