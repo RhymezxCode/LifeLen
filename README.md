@@ -262,9 +262,11 @@ The 5-day hackathon delivery plan, MVP-vs-stretch scope, milestones, and risks a
 
 ---
 
-## Hackathon
+## Hackathon — Track 5: EdgeAgent
 
-LifeLens is built for the **Qwen Code Hackathon** (deadline **July 9, 2026**). Qwen-VL is the centerpiece: one multimodal model powers both the vision understanding and the natural-language synthesis of grounded search results.
+LifeLens is built for the **Global AI Hackathon Series with Qwen Cloud** as an **EdgeAgent (Track 5)** — a Qwen-powered device that **perceives** via the camera (with on-device ML Kit labelling), **reasons** via **Qwen-VL on Qwen Cloud** (Alibaba Cloud Model Studio), and **acts locally**: routing per object type, persisting to a local store, running autonomously (auto-scan), and answering follow-up questions — with graceful degradation when offline or when no key is set. Qwen-VL is the centerpiece: one multimodal model powers both the vision understanding and the natural-language synthesis of grounded search results.
+
+See **[SUBMISSION.md](SUBMISSION.md)** for the track write-up, EdgeAgent architecture diagram, Alibaba Cloud proof, and judging-criteria mapping.
 
 ---
 
