@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -40,6 +42,7 @@ import com.lifelen.core.data.repository.AppSettings
 import com.lifelen.core.designsystem.LifeLensIcons
 import com.lifelen.core.designsystem.component.ButtonType
 import com.lifelen.core.designsystem.component.LifeLensButton
+import com.lifelen.core.designsystem.component.clickableEnabled
 import com.lifelen.core.designsystem.component.MediaIconButton
 import com.lifelen.core.designsystem.component.ModeChip
 import com.lifelen.core.designsystem.theme.Amber
@@ -204,52 +207,64 @@ private fun ApiKeyEditor(settings: AppSettings, onSaveKeys: (String, String) -> 
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        KeyField("DashScope (Qwen) key", dashKey, reveal) { dashKey = it }
-        KeyField("Search (Serper) key", searchKey, reveal) { searchKey = it }
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            LifeLensButton(
-                text = "Save keys",
-                onClick = { onSaveKeys(dashKey, searchKey); seeded = true },
-                modifier = Modifier.weight(1f),
-            )
-            LifeLensButton(
-                text = if (reveal) "Hide" else "Show",
-                onClick = { reveal = !reveal },
-                type = ButtonType.Secondary,
-            )
-        }
+        KeyField("DashScope (Qwen) key", dashKey, reveal, onToggleReveal = { reveal = !reveal }) { dashKey = it }
+        KeyField("Search (Serper) key", searchKey, reveal, onToggleReveal = { reveal = !reveal }) { searchKey = it }
+        LifeLensButton(
+            text = "Save keys",
+            onClick = { onSaveKeys(dashKey, searchKey); seeded = true },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
 @Composable
-private fun KeyField(label: String, value: String, reveal: Boolean, onValueChange: (String) -> Unit) {
+private fun KeyField(
+    label: String,
+    value: String,
+    reveal: Boolean,
+    onToggleReveal: () -> Unit,
+    onValueChange: (String) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label, style = LabelStyle, color = TextSecondary)
-        Box(
+        Row(
             Modifier
                 .fillMaxWidth()
                 .height(44.dp)
                 .clip(LifeLensShapes.control)
                 .background(Raised)
-                .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.CenterStart,
+                .padding(start = 12.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (value.isEmpty()) {
-                Text("Paste key…", style = BodyStyle, color = TextFaint)
+            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                if (value.isEmpty()) {
+                    Text("Paste key…", style = BodyStyle, color = TextFaint)
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = BodyStyle.copy(color = TextPrimary),
+                    cursorBrush = SolidColor(Amber),
+                    visualTransformation = if (reveal) VisualTransformation.None else PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                singleLine = true,
-                textStyle = BodyStyle.copy(color = TextPrimary),
-                cursorBrush = SolidColor(Amber),
-                visualTransformation = if (reveal) VisualTransformation.None else PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            // In-field reveal toggle — the standard, unobtrusive password affordance.
+            Box(
+                Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .clickableEnabled(true, onToggleReveal),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (reveal) LifeLensIcons.EyeOff else LifeLensIcons.Eye,
+                    contentDescription = if (reveal) "Hide keys" else "Show keys",
+                    tint = if (reveal) Amber else TextFaint,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }

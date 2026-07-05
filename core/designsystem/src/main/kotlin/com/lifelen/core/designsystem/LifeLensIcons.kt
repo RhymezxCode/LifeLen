@@ -8,6 +8,8 @@ import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bolt
@@ -45,6 +47,8 @@ object LifeLensIcons {
     val Trash = Icons.Outlined.Delete
     val Favorite = Icons.Rounded.Favorite
     val FavoriteOutline = Icons.Rounded.FavoriteBorder
+    val Eye = Icons.Outlined.Visibility
+    val EyeOff = Icons.Outlined.VisibilityOff
     val Pin = Icons.Outlined.PushPin
     val Plus = Icons.Rounded.Add
     val Minus = Icons.Rounded.Remove
