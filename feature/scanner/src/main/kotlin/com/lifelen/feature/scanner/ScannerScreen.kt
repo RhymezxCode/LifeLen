@@ -9,6 +9,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
@@ -63,6 +64,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.label.ImageLabeling
+import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
+import kotlinx.coroutines.delay
 import com.lifelen.core.designsystem.LifeLensIcons
 import com.lifelen.core.designsystem.component.ButtonType
 import com.lifelen.core.designsystem.component.BracketThumb
@@ -76,7 +81,10 @@ import com.lifelen.core.designsystem.component.ShutterButton
 import com.lifelen.core.designsystem.component.ShutterState
 import com.lifelen.core.designsystem.component.clickableEnabled
 import com.lifelen.core.designsystem.theme.Amber
+import com.lifelen.core.designsystem.theme.AmberTint
 import com.lifelen.core.designsystem.theme.BodyStyle
+import com.lifelen.core.designsystem.theme.LabelStyle
+import com.lifelen.core.designsystem.theme.LifeLensShapes
 import com.lifelen.core.designsystem.theme.Chamber
 import com.lifelen.core.designsystem.theme.DataSm
 import com.lifelen.core.designsystem.theme.Display
@@ -91,6 +99,9 @@ import java.io.File
 
 /** Selectable capture modes shown in the [ModeStrip]. Visual-only for v1. */
 private val ScanModes = listOf("Auto", "Electronics", "Food", "Text")
+
+/** Top on-device label shown live over the viewfinder. */
+private data class LiveLabel(val text: String, val confidence: Float)
 
 @Composable
 fun ScannerRoute(
@@ -229,6 +240,7 @@ internal fun ScannerScreen(
 }
 
 /** S02 — the live viewfinder with camera chrome. */
+@androidx.annotation.OptIn(markerClass = [ExperimentalGetImage::class])
 @Composable
 private fun CameraHome(
     uiState: ScannerUiState,
@@ -243,10 +255,27 @@ private fun CameraHome(
     val lifecycleOwner = LocalLifecycleOwner.current
     val controller = remember {
         LifecycleCameraController(context).apply {
-            setEnabledUseCases(CameraController.IMAGE_CAPTURE)
+            setEnabledUseCases(CameraController.IMAGE_CAPTURE or CameraController.IMAGE_ANALYSIS)
         }
     }
+    // On-device ML Kit labelling of the live viewfinder (real-time) — no key or network needed.
+    val labeler = remember {
+        ImageLabeling.getClient(ImageLabelerOptions.Builder().setConfidenceThreshold(0.6f).build())
+    }
+    var liveLabel by remember { mutableStateOf<LiveLabel?>(null) }
     LaunchedEffect(controller, lifecycleOwner) {
+        controller.setImageAnalysisAnalyzer(ContextCompat.getMainExecutor(context)) { proxy ->
+            val media = proxy.image
+            if (media == null) {
+                proxy.close()
+            } else {
+                labeler.process(InputImage.fromMediaImage(media, proxy.imageInfo.rotationDegrees))
+                    .addOnSuccessListener { labels ->
+                        liveLabel = labels.firstOrNull()?.let { LiveLabel(it.text, it.confidence) }
+                    }
+                    .addOnCompleteListener { proxy.close() }
+            }
+        }
         controller.bindToLifecycle(lifecycleOwner)
     }
 
@@ -271,20 +300,48 @@ private fun CameraHome(
         )
     }
 
+    // Auto-scan: when a confident label holds steady briefly, capture without a shutter tap.
+    LaunchedEffect(uiState.autoScan, liveLabel?.text, uiState.isCapturing) {
+        val label = liveLabel
+        if (uiState.autoScan && !uiState.isCapturing && label != null && label.confidence >= 0.7f) {
+            delay(1100)
+            if (liveLabel?.text == label.text && !uiState.isCapturing) capture()
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         AndroidView(
             factory = { ctx -> PreviewView(ctx).apply { this.controller = controller } },
             modifier = Modifier.fillMaxSize(),
         )
 
-        // Signature viewfinder framing brackets — a searching guide (pulsing) until the shutter fires.
+        // Live label chip + signature framing brackets (locked amber once ML Kit recognises something).
         if (!uiState.isCapturing) {
-            DetectionBrackets(
-                state = DetectionState.Searching,
-                modifier = Modifier
-                    .align(BiasAlignment(0f, -0.08f))
-                    .size(width = 256.dp, height = 176.dp),
-            )
+            Column(
+                modifier = Modifier.align(BiasAlignment(0f, -0.08f)),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                liveLabel?.let { label ->
+                    Row(
+                        modifier = Modifier
+                            .clip(LifeLensShapes.chip)
+                            .background(AmberTint)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "${label.text} · ${(label.confidence * 100).toInt()}%",
+                            style = LabelStyle,
+                            color = Amber,
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                }
+                DetectionBrackets(
+                    state = if (liveLabel != null) DetectionState.Locked else DetectionState.Searching,
+                    modifier = Modifier.size(width = 256.dp, height = 176.dp),
+                )
+            }
         }
 
         // Top controls (y ≈ 54, 16dp gutters).

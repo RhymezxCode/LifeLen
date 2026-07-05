@@ -38,6 +38,7 @@ class SettingsViewModel @Inject constructor(
     fun setHapticsEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setHapticsEnabled(enabled) }
 
     fun setAutoSaveScans(enabled: Boolean) = viewModelScope.launch { settingsRepository.setAutoSaveScans(enabled) }
+    fun setAutoScan(enabled: Boolean) = viewModelScope.launch { settingsRepository.setAutoScan(enabled) }
 
     fun setRememberKeys(remember: Boolean) = viewModelScope.launch { settingsRepository.setRememberKeys(remember) }
 

@@ -9,4 +9,5 @@ data class UserPreferences(
     val hapticsEnabled: Boolean = true,
     val autoSaveScans: Boolean = false,
     val rememberKeys: Boolean = true,
+    val autoScan: Boolean = false,
 )

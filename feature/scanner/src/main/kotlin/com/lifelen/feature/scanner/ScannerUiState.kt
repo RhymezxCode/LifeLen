@@ -12,4 +12,6 @@ data class ScannerUiState(
     val lastThumbPath: String? = null,
     val selectedMode: String = "Auto",
     val error: String? = null,
+    /** When true, the camera auto-identifies a steady subject instead of waiting for the shutter. */
+    val autoScan: Boolean = false,
 )

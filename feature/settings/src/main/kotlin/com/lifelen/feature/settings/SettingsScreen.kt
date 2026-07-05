@@ -77,6 +77,7 @@ fun SettingsRoute(
         onPricingChange = viewModel::setPricingEnabled,
         onHapticsChange = viewModel::setHapticsEnabled,
         onAutoSaveChange = viewModel::setAutoSaveScans,
+        onAutoScanChange = viewModel::setAutoScan,
         onRememberKeysChange = viewModel::setRememberKeys,
         onClearLibrary = viewModel::clearLibrary,
         onBack = onBack,
@@ -91,6 +92,7 @@ internal fun SettingsScreen(
     onPricingChange: (Boolean) -> Unit,
     onHapticsChange: (Boolean) -> Unit,
     onAutoSaveChange: (Boolean) -> Unit,
+    onAutoScanChange: (Boolean) -> Unit,
     onRememberKeysChange: (Boolean) -> Unit,
     onClearLibrary: () -> Unit,
     onBack: () -> Unit,
@@ -160,6 +162,12 @@ internal fun SettingsScreen(
 
             // --- Scanning ---
             SectionTitle("Scanning")
+            PreferenceSwitchRow(
+                title = "Auto-scan",
+                subtitle = "Identify a steady subject automatically — no shutter tap needed.",
+                checked = settings.autoScan,
+                onCheckedChange = onAutoScanChange,
+            )
             PreferenceSwitchRow(
                 title = "Live pricing",
                 subtitle = "Search the web for current prices and buy links.",

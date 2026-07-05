@@ -47,7 +47,7 @@ class ScannerViewModel @Inject constructor(
         }
         viewModelScope.launch {
             settingsRepository.settings.collect { settings ->
-                _uiState.update { it.copy(hasVisionKey = settings.hasVisionKey) }
+                _uiState.update { it.copy(hasVisionKey = settings.hasVisionKey, autoScan = settings.autoScan) }
             }
         }
     }

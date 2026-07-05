@@ -39,6 +39,7 @@ class SettingsScreenTest {
                     onPricingChange = {},
                     onHapticsChange = {},
                     onAutoSaveChange = {},
+                    onAutoScanChange = {},
                     onRememberKeysChange = {},
                     onClearLibrary = onClearLibrary,
                     onBack = {},

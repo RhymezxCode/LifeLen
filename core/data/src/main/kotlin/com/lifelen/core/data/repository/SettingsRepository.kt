@@ -17,6 +17,8 @@ data class AppSettings(
     val hapticsEnabled: Boolean = true,
     val autoSaveScans: Boolean = false,
     val rememberKeys: Boolean = true,
+    /** When on, the camera auto-identifies a steady subject instead of waiting for the shutter. */
+    val autoScan: Boolean = false,
 ) {
     val hasVisionKey: Boolean get() = dashScopeApiKey.isNotBlank()
     val hasSearchKey: Boolean get() = searchApiKey.isNotBlank()
@@ -31,6 +33,7 @@ interface SettingsRepository {
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setHapticsEnabled(enabled: Boolean)
     suspend fun setAutoSaveScans(enabled: Boolean)
+    suspend fun setAutoScan(enabled: Boolean)
     suspend fun setRememberKeys(remember: Boolean)
     /** Seeds keys from build-time defaults only when the user hasn't set their own. */
     suspend fun seedDefaultsIfEmpty(dashScopeKey: String, searchKey: String)
@@ -49,6 +52,7 @@ class DefaultSettingsRepository @Inject constructor(
             hapticsEnabled = it.hapticsEnabled,
             autoSaveScans = it.autoSaveScans,
             rememberKeys = it.rememberKeys,
+            autoScan = it.autoScan,
         )
     }
 
@@ -66,6 +70,8 @@ class DefaultSettingsRepository @Inject constructor(
     override suspend fun setHapticsEnabled(enabled: Boolean) = dataSource.setHapticsEnabled(enabled)
 
     override suspend fun setAutoSaveScans(enabled: Boolean) = dataSource.setAutoSaveScans(enabled)
+
+    override suspend fun setAutoScan(enabled: Boolean) = dataSource.setAutoScan(enabled)
 
     override suspend fun setRememberKeys(remember: Boolean) = dataSource.setRememberKeys(remember)
 

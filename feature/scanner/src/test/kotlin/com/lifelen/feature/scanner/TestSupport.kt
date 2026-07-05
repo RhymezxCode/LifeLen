@@ -99,6 +99,9 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
         settingsFlow.update { it.copy(autoSaveScans = enabled) }
     }
 
+    override suspend fun setAutoScan(enabled: Boolean) =
+        settingsFlow.update { it.copy(autoScan = enabled) }
+
     override suspend fun setRememberKeys(remember: Boolean) {
         this.remember = remember
         settingsFlow.update { it.copy(rememberKeys = remember) }

@@ -23,6 +23,7 @@ class UserPreferencesDataSource @Inject constructor(
         store.getBooleanFromStore(Keys.HAPTICS_DISABLED),
         store.getBooleanFromStore(Keys.AUTO_SAVE),
         store.getBooleanFromStore(Keys.KEYS_FORGOTTEN),
+        store.getBooleanFromStore(Keys.AUTO_SCAN),
     ) { values ->
         UserPreferences(
             dashScopeApiKey = values[0] as String,
@@ -32,6 +33,7 @@ class UserPreferencesDataSource @Inject constructor(
             hapticsEnabled = !(values[4] as Boolean),
             autoSaveScans = values[5] as Boolean,
             rememberKeys = !(values[6] as Boolean),
+            autoScan = values[7] as Boolean,
         )
     }
 
@@ -53,6 +55,9 @@ class UserPreferencesDataSource @Inject constructor(
     suspend fun setAutoSaveScans(enabled: Boolean) =
         store.saveBooleanToStore(Keys.AUTO_SAVE, enabled)
 
+    suspend fun setAutoScan(enabled: Boolean) =
+        store.saveBooleanToStore(Keys.AUTO_SCAN, enabled)
+
     /** When remember is turned off, the stored keys are wiped so they don't linger on device. */
     suspend fun setRememberKeys(remember: Boolean) {
         store.saveBooleanToStore(Keys.KEYS_FORGOTTEN, !remember)
@@ -70,5 +75,6 @@ class UserPreferencesDataSource @Inject constructor(
         const val HAPTICS_DISABLED = "haptics_disabled"
         const val AUTO_SAVE = "auto_save_scans"
         const val KEYS_FORGOTTEN = "keys_forgotten"
+        const val AUTO_SCAN = "auto_scan"
     }
 }
