@@ -11,10 +11,9 @@ import org.gradle.kotlin.dsl.dependencies
  */
 class AndroidLibraryConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) = with(target) {
-        with(pluginManager) {
-            apply("com.android.library")
-            apply("org.jetbrains.kotlin.android")
-        }
+        // AGP 9 has built-in Kotlin: applying com.android.library already registers the
+        // `kotlin` extension, so we must NOT also apply org.jetbrains.kotlin.android.
+        pluginManager.apply("com.android.library")
 
         extensions.configure<LibraryExtension> {
             compileSdk = versionInt("compileSdk")
@@ -27,7 +26,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                 targetCompatibility = JavaVersion.VERSION_11
             }
         }
-        configureKotlinAndroidJvmTarget()
+        // With built-in Kotlin, jvmTarget defaults to compileOptions.targetCompatibility (11).
 
         dependencies {
             add("implementation", libs.findLibrary("kotlinx-coroutines-android").get())

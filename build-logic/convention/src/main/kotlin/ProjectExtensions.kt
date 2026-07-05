@@ -5,28 +5,22 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.getByType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 
+// NOTE: these MUST be `internal`. If `Project.libs` were public it would leak onto every
+// module's build-script classpath and SHADOW Gradle's generated type-safe `libs` accessor,
+// making `libs.androidx.*` unresolvable in build.gradle.kts files.
+
 /** Accessor for the shared `libs` version catalog from inside convention plugins. */
-val Project.libs: VersionCatalog
+internal val Project.libs: VersionCatalog
     get() = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
 /** Reads an integer version (e.g. compileSdk/minSdk/targetSdk) from the version catalog. */
-fun Project.versionInt(alias: String): Int =
+internal fun Project.versionInt(alias: String): Int =
     libs.findVersion(alias).get().requiredVersion.toInt()
 
-/** Aligns the Kotlin (Android) JVM target with the module's Java compatibility level. */
-fun Project.configureKotlinAndroidJvmTarget() {
-    extensions.configure<KotlinAndroidProjectExtension> {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-        }
-    }
-}
-
 /** Aligns the Kotlin (pure JVM) target with the module's Java compatibility level. */
-fun Project.configureKotlinJvmTarget() {
+internal fun Project.configureKotlinJvmTarget() {
     extensions.configure<KotlinJvmProjectExtension> {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -35,7 +29,7 @@ fun Project.configureKotlinJvmTarget() {
 }
 
 /** Adds the Compose BOM and the baseline Compose UI dependencies used by every Compose module. */
-fun Project.addComposeDependencies() {
+internal fun Project.addComposeDependencies() {
     val bom = libs.findLibrary("androidx-compose-bom").get()
     dependencies {
         add("implementation", platform(bom))
