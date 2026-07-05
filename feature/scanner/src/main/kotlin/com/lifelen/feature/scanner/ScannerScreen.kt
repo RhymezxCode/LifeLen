@@ -3,6 +3,7 @@ package com.lifelen.feature.scanner
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -72,6 +73,7 @@ import com.lifelen.core.designsystem.theme.Raised
 import com.lifelen.core.designsystem.theme.TextPrimary
 import com.lifelen.core.designsystem.theme.TextSecondary
 import com.lifelen.feature.scanner.util.toDownscaledJpeg
+import com.lifelen.feature.scanner.util.uriToDownscaledJpeg
 import java.io.File
 
 /** Selectable capture modes shown in the [ModeStrip]. Visual-only for v1. */
@@ -122,6 +124,19 @@ internal fun ScannerScreen(
         ActivityResultContracts.RequestPermission(),
     ) { granted -> hasPermission = granted }
 
+    // Gallery import — reuses the same identify pipeline as a camera capture (Spec S01/S02).
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) {
+            val bytes = uriToDownscaledJpeg(context, uri)
+            if (bytes != null) onCaptured(bytes) else onCaptureError("Couldn't read that image.")
+        }
+    }
+    val onPickGallery = {
+        galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
     // Auto-prompt the first time the screen appears without permission.
     LaunchedEffect(Unit) {
         if (!hasPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
@@ -151,12 +166,14 @@ internal fun ScannerScreen(
                     onCaptured = onCaptured,
                     onCaptureError = onCaptureError,
                     onSelectMode = onSelectMode,
+                    onPickGallery = onPickGallery,
                     onOpenLibrary = onOpenLibrary,
                     onOpenSettings = onOpenSettings,
                 )
             } else {
                 PermissionPrime(
                     onEnable = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                    onImportGallery = onPickGallery,
                 )
             }
         }
@@ -170,6 +187,7 @@ private fun CameraHome(
     onCaptured: (ByteArray) -> Unit,
     onCaptureError: (String) -> Unit,
     onSelectMode: (String) -> Unit,
+    onPickGallery: () -> Unit,
     onOpenLibrary: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -248,6 +266,7 @@ private fun CameraHome(
             BottomChrome(
                 uiState = uiState,
                 onCapture = { capture() },
+                onPickGallery = onPickGallery,
                 onOpenLibrary = onOpenLibrary,
             )
         }
@@ -281,6 +300,7 @@ private fun ModeStrip(
 private fun BottomChrome(
     uiState: ScannerUiState,
     onCapture: () -> Unit,
+    onPickGallery: () -> Unit,
     onOpenLibrary: () -> Unit,
 ) {
     Row(
@@ -303,7 +323,7 @@ private fun BottomChrome(
         RaisedIconButton(
             icon = LifeLensIcons.Gallery,
             contentDescription = "Import from gallery",
-            onClick = {},
+            onClick = onPickGallery,
             modifier = Modifier.size(42.dp),
         )
         ShutterButton(
@@ -362,6 +382,7 @@ private fun LibraryThumb(
 @Composable
 private fun PermissionPrime(
     onEnable: () -> Unit,
+    onImportGallery: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -397,10 +418,42 @@ private fun PermissionPrime(
         )
         Spacer(Modifier.height(8.dp))
         LifeLensButton(
-            text = "Not now",
-            onClick = {},
+            text = "Import a photo instead",
+            onClick = onImportGallery,
             modifier = Modifier.fillMaxWidth(),
             type = ButtonType.Ghost,
+        )
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(
+    name = "S01 · Permission prime",
+    showBackground = true,
+    backgroundColor = 0xFF0D0F13,
+    widthDp = 390,
+    heightDp = 844,
+)
+@Composable
+private fun PermissionPrimePreview() {
+    com.lifelen.core.designsystem.theme.LifeLensTheme {
+        PermissionPrime(onEnable = {}, onImportGallery = {})
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(
+    name = "S02 · Camera bottom chrome",
+    showBackground = true,
+    backgroundColor = 0xFF0D0F13,
+    widthDp = 390,
+)
+@Composable
+private fun BottomChromePreview() {
+    com.lifelen.core.designsystem.theme.LifeLensTheme {
+        BottomChrome(
+            uiState = ScannerUiState(libraryCount = 3),
+            onCapture = {},
+            onPickGallery = {},
+            onOpenLibrary = {},
         )
     }
 }
