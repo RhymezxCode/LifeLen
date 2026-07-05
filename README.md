@@ -32,6 +32,10 @@ Read the full vision and story in **[ABOUT.md](ABOUT.md)**.
 - **Live pricing (search grounding)** — prices are grounded against a live web/shopping search so they stay current, not stale model memory.
 - **Searchable scan history** — every scan is saved locally with its image, identification, price/nutrition data, and timestamp. Favorite, re-open, share, and delete.
 - **Document text extraction** — pull text out of documents, signs, and labels.
+- **Plant care** — light/water/difficulty/pet-safety stats plus a care card (watering + placement).
+- **Gallery import** — identify an existing photo, not just a live capture.
+- **Home-screen widgets** — five Jetpack Glance widgets: Quick Scan, Last Scan, Library Stats, Daily Calories, and Price Watch.
+- **Light & dark** — a dark-first "instrument" design that also follows the system light/dark setting, with a manual Theme override (System/Light/Dark) in Settings.
 
 The complete catalog, with user workflows and technical requirements per feature, is in **[features.md](features.md)**.
 
@@ -62,11 +66,13 @@ The complete catalog, with user workflows and technical requirements per feature
 | Networking | Retrofit + OkHttp + kotlinx.serialization |
 | AI / Vision | Qwen-VL via DashScope OpenAI-compatible API |
 | Search grounding | Pluggable `SearchClient` (Serper / Tavily / SerpAPI / Bing) |
-| Local persistence | Room (scan history) + DataStore (settings & API keys) |
+| Local persistence | Room (scan history) + [SimpleStore](https://github.com/RhymezxCode/SimpleStore) over DataStore (settings & API keys) |
+| Home-screen widgets | Jetpack Glance (5 widgets) |
+| Theme & type | System-aware light/dark; Space Grotesk (display) + JetBrains Mono (data readouts) |
 | Build | Gradle Kotlin DSL, version catalog, `build-logic` convention plugins, composite build |
-| Testing | JUnit4, Compose UI test, Turbine, OkHttp MockWebServer |
+| Testing | JUnit4, **Robolectric** (JVM-runnable Android + Compose UI/E2E tests), Turbine, OkHttp MockWebServer |
 
-Platform targets: `minSdk 24`, `targetSdk 37`, `compileSdk 37`, Java 11, Kotlin 2.2.10, AGP 9.4.0-alpha03, Jetpack Compose (BOM 2026.02.01), Material 3.
+Platform targets: `minSdk 24`, `targetSdk 37`, `compileSdk 37`, Java 11 (`:core:datastore` targets 17 to inline SimpleStore), Kotlin 2.2.10, AGP 9.4.0-alpha03, Jetpack Compose (BOM 2026.02.01), Material 3.
 
 ---
 
@@ -74,22 +80,27 @@ Platform targets: `minSdk 24`, `targetSdk 37`, `compileSdk 37`, Java 11, Kotlin 
 
 LifeLens follows a Now-in-Android–style multi-module architecture with clean layering and MVVM + unidirectional data flow. UI (Compose) talks to a ViewModel that exposes `StateFlow<UiState>`; the ViewModel talks to repositories in `:core:data`, which hide all data sources (`:core:network` for Qwen, `:core:search`, `:core:database`, `:core:datastore`) behind interfaces. Feature modules never depend on each other.
 
-Enrichment of each scan is handled by a **`CategoryHandler` strategy/registry** in `:core:data` (e.g. `FoodHandler`, `ElectronicsHandler`, `BookHandler`, `ClothingHandler`, `GenericHandler`), selected by the `ScanCategory` that Qwen returns — so adding a new object type is a small, isolated change.
+Enrichment of each scan is handled by a **`CategoryHandler` strategy/registry** in `:core:data` (e.g. `FoodHandler`, `ElectronicsHandler`, `PlantHandler`, `BookHandler`, `ClothingHandler`, `GenericHandler`), selected by the `ScanCategory` that Qwen returns — so adding a new object type is a small, isolated change. The UI is a dark-first, theme-aware design system (`:core:designsystem`) with a `CompositionLocal` palette that also renders in light mode.
 
 ```mermaid
 graph TD
     app[":app"] --> fscanner[":feature:scanner"]
     app --> fresults[":feature:results"]
+    app --> fprices[":feature:prices"]
     app --> fhistory[":feature:history"]
     app --> fsettings[":feature:settings"]
+    app --> fwidget[":feature:widget"]
 
     fscanner --> data[":core:data"]
     fresults --> data
+    fprices --> data
     fhistory --> data
     fsettings --> data
+    fwidget --> data
 
     fscanner --> ds[":core:designsystem"]
     fresults --> ds
+    fprices --> ds
     fhistory --> ds
     fsettings --> ds
 
@@ -121,16 +132,18 @@ Full details, including the scan sequence diagram, DI approach, and the extensib
 | `build-logic:convention` | Included build | Gradle convention plugins shared across modules. |
 | `:core:model` | Kotlin/JVM | Pure domain models (`Scan`, `Identification`, `PriceInfo`, `NutritionInfo`, `ScanCategory`, `BuyOption`). No Android deps. |
 | `:core:common` | Android library | Dispatcher qualifiers, `Result` wrappers, error types, utility extensions. |
-| `:core:designsystem` | Android library | Compose theme, reusable components (`LifelenButton`, `LoadingIndicator`, `ScanCard`), icons. |
+| `:core:designsystem` | Android library | Dark/light theme + tokens, bundled fonts, and the LifeLens component library (`DetectionBrackets`, `ShutterButton`, `BracketThumb`, buttons, chips, stat tiles, trend pill, skeletons). |
 | `:core:datastore` | Android library | DataStore for settings and secure storage of API keys. |
 | `:core:database` | Android library | Room database, entities, DAOs for scan history. |
 | `:core:network` | Android library | Retrofit setup + Qwen-VL (DashScope) client + DTOs + image encoding. |
 | `:core:search` | Android library | Search/shopping grounding client abstraction + default implementation. |
 | `:core:data` | Android library | Repositories + use cases + `CategoryHandler` registry combining network + search + database (`ScanRepository`, `HistoryRepository`). |
-| `:feature:scanner` | Feature | CameraX capture + analyze flow (`ScannerScreen`, `ScannerViewModel`). |
-| `:feature:results` | Feature | Identification result detail (`ResultsScreen`, `ResultsViewModel`). |
-| `:feature:history` | Feature | Saved scans list + search (`HistoryScreen`, `HistoryViewModel`). |
-| `:feature:settings` | Feature | API keys entry + preferences (`SettingsScreen`, `SettingsViewModel`). |
+| `:feature:scanner` | Feature | CameraX camera home + gallery import + permission prime (`ScannerScreen`, `ScannerViewModel`). |
+| `:feature:results` | Feature | Result sheet with adaptive per-category modules (`ResultsScreen`, `ResultsViewModel`). |
+| `:feature:prices` | Feature | Live price-comparison screen (`PricesScreen`, `PricesViewModel`). |
+| `:feature:history` | Feature | Library: day-grouped, searchable saved scans (`LibraryScreen`, `LibraryViewModel`). |
+| `:feature:settings` | Feature | API keys, theme, and preferences (`SettingsScreen`, `SettingsViewModel`). |
+| `:feature:widget` | Feature | 5 Jetpack Glance home-screen widgets (Quick Scan, Last Scan, Library Stats, Daily Calories, Price Watch). |
 
 ---
 
@@ -145,18 +158,22 @@ Lifelen/                          # rootProject.name = "lifelen"
 │   ├── model/                    # :core:model — pure Kotlin domain models
 │   ├── common/                   # :core:common — dispatchers, Result, errors, utils
 │   ├── designsystem/             # :core:designsystem — theme + reusable Compose UI
-│   ├── datastore/                # :core:datastore — settings + secure API keys
+│   ├── datastore/                # :core:datastore — settings + API keys (SimpleStore over DataStore)
 │   ├── database/                 # :core:database — Room entities + DAOs
 │   ├── network/                  # :core:network — Retrofit + Qwen-VL client + DTOs
 │   ├── search/                   # :core:search — search grounding client
-│   └── data/                     # :core:data — repositories + use cases + CategoryHandler registry
+│   └── data/                     # :core:data — repositories + ScanSession + CategoryHandler registry
 ├── feature/
-│   ├── scanner/                  # :feature:scanner — camera capture + analyze
-│   ├── results/                  # :feature:results — result detail
-│   ├── history/                  # :feature:history — saved scans + search
-│   └── settings/                 # :feature:settings — API keys + preferences
+│   ├── scanner/                  # :feature:scanner — camera home + gallery import
+│   ├── results/                  # :feature:results — result sheet + category modules
+│   ├── prices/                   # :feature:prices — price comparison
+│   ├── history/                  # :feature:history — Library (grouped + searchable)
+│   ├── settings/                 # :feature:settings — API keys, theme, preferences
+│   └── widget/                   # :feature:widget — 5 Glance home-screen widgets
+├── .github/workflows/ci.yml      # CI: assembleDebug + testDebugUnitTest
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── DESIGN-BUILD-PLAN.md
 │   └── API-KEYS.md
 ├── gradle/
 │   └── libs.versions.toml        # version catalog
