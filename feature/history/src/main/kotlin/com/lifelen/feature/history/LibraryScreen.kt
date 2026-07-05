@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -48,12 +49,18 @@ import com.lifelen.core.designsystem.theme.DataMd
 import com.lifelen.core.designsystem.theme.DataSm
 import com.lifelen.core.designsystem.theme.Hairline
 import com.lifelen.core.designsystem.theme.LifeLensShapes
+import com.lifelen.core.designsystem.theme.LifeLensTheme
 import com.lifelen.core.designsystem.theme.OnAmber
 import com.lifelen.core.designsystem.theme.Positive
 import com.lifelen.core.designsystem.theme.TextFaint
 import com.lifelen.core.designsystem.theme.TextPrimary
 import com.lifelen.core.designsystem.theme.TextSecondary
 import com.lifelen.core.designsystem.theme.TitleStyle
+import com.lifelen.core.model.BuyOption
+import com.lifelen.core.model.Identification
+import com.lifelen.core.model.NutritionInfo
+import com.lifelen.core.model.PriceCondition
+import com.lifelen.core.model.PriceInfo
 import com.lifelen.core.model.Scan
 import com.lifelen.core.model.ScanCategory
 import java.io.File
@@ -303,4 +310,182 @@ private fun Double.money(): String {
     nf.minimumFractionDigits = 0
     nf.maximumFractionDigits = if (this % 1.0 == 0.0) 0 else 2
     return nf.format(this)
+}
+
+// ---------------------------------------------------------------------------
+// Previews (Android Studio preview pane).
+//
+// LibraryRoute drives its UI from a Hilt ViewModel and its row/header/FAB pieces
+// are file-private, so the preview renders a stateless copy of the same layout
+// with sample data — no changes to the production composables.
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun LibraryScreenPreview(uiState: LibraryUiState) {
+    val showEmpty = !uiState.isLoading && uiState.groups.isEmpty()
+
+    Box(Modifier.fillMaxSize().background(Chamber)) {
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MediaIconButton(
+                    icon = LifeLensIcons.ChevronLeft,
+                    contentDescription = "Back",
+                    onClick = {},
+                )
+                Text(
+                    text = "Library",
+                    style = TitleStyle,
+                    color = TextPrimary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = uiState.totalCount.toString(),
+                    style = DataSm,
+                    color = TextSecondary,
+                )
+            }
+
+            LifeLensSearchBar(
+                query = uiState.query,
+                onQueryChange = {},
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = "Search scans, specs, prices",
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ModeChip("All", uiState.filter == null, onClick = {})
+                ModeChip("Electronics", uiState.filter == ScanCategory.ELECTRONICS, onClick = {})
+                ModeChip("Food", uiState.filter == ScanCategory.FOOD, onClick = {})
+                ModeChip("Plants", uiState.filter == ScanCategory.PLANT, onClick = {})
+            }
+
+            if (showEmpty) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    EmptyState(
+                        headline = "Nothing scanned yet",
+                        body = "Your identified items will live here.",
+                        ctaText = "Start scanning",
+                        onCta = {},
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
+                ) {
+                    uiState.groups.forEach { group ->
+                        item(key = "header_${group.header}") { GroupHeader(group.header) }
+                        items(group.scans, key = { it.id }) { scan ->
+                            LibraryRow(scan = scan, onClick = {})
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!showEmpty) {
+            FloatingScanButton(
+                onClick = {},
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 26.dp),
+            )
+        }
+    }
+}
+
+private fun previewLaptopScan() = Scan(
+    id = "1",
+    imagePath = "",
+    createdAt = 0L,
+    identification = Identification(
+        title = "MacBook Air 13\" (M2, 2022)",
+        category = ScanCategory.ELECTRONICS,
+        summary = "A thin-and-light laptop.",
+        confidence = 0.94f,
+        attributes = linkedMapOf(
+            "Chip" to "M2",
+            "Memory" to "8 GB",
+            "Storage" to "256 GB",
+            "Display" to "13.6\"",
+        ),
+    ),
+    price = PriceInfo(
+        currency = "$",
+        lowPrice = 849.0,
+        highPrice = 999.0,
+        average = 967.0,
+        source = "Google Shopping",
+        options = listOf(
+            BuyOption("Amazon", 849.0, "$", "http://a", true, PriceCondition.NEW, "Free shipping · in stock"),
+            BuyOption("Best Buy", 899.0, "$", "http://b", true, PriceCondition.NEW, "Free pickup today"),
+            BuyOption("eBay", 699.0, "$", "http://e", true, PriceCondition.RENEWED, "1 yr warranty"),
+        ),
+    ),
+)
+
+private fun previewFoodScan() = Scan(
+    id = "2",
+    imagePath = "",
+    createdAt = 0L,
+    identification = Identification(
+        title = "Jollof rice with grilled chicken",
+        category = ScanCategory.FOOD,
+        summary = "",
+        confidence = 0.8f,
+    ),
+    nutrition = NutritionInfo(
+        servingSize = "1 plate · ~350 g",
+        calories = 540,
+        protein = 28.0,
+        carbs = 62.0,
+        fat = 19.0,
+        fiber = 4.0,
+        sugars = 6.0,
+        sodium = 890,
+        ingredients = listOf("rice", "chicken", "sauce"),
+    ),
+)
+
+@Preview(showBackground = true, backgroundColor = 0xFF0D0F13, widthDp = 390, heightDp = 844)
+@Composable
+private fun LibraryPopulatedPreview() {
+    LifeLensTheme {
+        LibraryScreenPreview(
+            uiState = LibraryUiState(
+                isLoading = false,
+                totalCount = 2,
+                groups = listOf(
+                    LibraryGroup(header = "Today", scans = listOf(previewLaptopScan())),
+                    LibraryGroup(header = "Yesterday", scans = listOf(previewFoodScan())),
+                ),
+            ),
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0D0F13, widthDp = 390, heightDp = 844)
+@Composable
+private fun LibraryEmptyPreview() {
+    LifeLensTheme {
+        LibraryScreenPreview(
+            uiState = LibraryUiState(isLoading = false, groups = emptyList(), totalCount = 0),
+        )
+    }
 }
