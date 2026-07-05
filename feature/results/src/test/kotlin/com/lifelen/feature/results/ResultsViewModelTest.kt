@@ -255,4 +255,25 @@ class ResultsViewModelTest {
             cancelAndConsumeRemainingEvents()
         }
     }
+
+    @Test
+    fun `ask appends the question then fills in the answer`() = runTest {
+        val scanRepo = FakeScanRepository(identifyResult = DataResult.Success(sampleElectronics()))
+        scanRepo.askResult = DataResult.Success("About 1.2 kg.")
+        val scanSession = session().apply { beginCapture(byteArrayOf(1)) }
+        val viewModel = vm(scanRepo, scanSession = scanSession)
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state !is ResultsUiState.Ready) state = awaitItem()
+            cancelAndConsumeRemainingEvents()
+        }
+
+        viewModel.ask("How heavy is it?")
+
+        val messages = viewModel.askMessages.value
+        assertEquals(1, messages.size)
+        assertEquals("How heavy is it?", messages.first().question)
+        assertEquals("About 1.2 kg.", messages.first().answer)
+    }
 }

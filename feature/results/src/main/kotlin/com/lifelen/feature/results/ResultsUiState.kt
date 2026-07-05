@@ -37,6 +37,9 @@ sealed interface ResultsUiState {
     data class Offline(val lastScan: Scan?) : ResultsUiState
 }
 
+/** One turn of the follow-up "Ask about this" thread. [answer] is null while the reply is pending. */
+data class AskMessage(val question: String, val answer: String?)
+
 /** One-shot effects the route reacts to. */
 sealed interface ResultEvent {
     data object Saved : ResultEvent

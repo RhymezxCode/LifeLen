@@ -72,6 +72,7 @@ fun ResultRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val capturedImagePath by viewModel.capturedImagePath.collectAsStateWithLifecycle()
+    val askMessages by viewModel.askMessages.collectAsStateWithLifecycle()
     var savedPillVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -103,6 +104,8 @@ fun ResultRoute(
         onToggleFavorite = viewModel::toggleFavorite,
         onDelete = viewModel::delete,
         onRetry = viewModel::retry,
+        askMessages = askMessages,
+        onAsk = viewModel::ask,
     )
 }
 
@@ -131,6 +134,8 @@ internal fun ResultsScreen(
     onToggleFavorite: () -> Unit = {},
     onDelete: () -> Unit = {},
     onRetry: () -> Unit = {},
+    askMessages: List<AskMessage> = emptyList(),
+    onAsk: (String) -> Unit = {},
 ) {
     val ready = uiState as? ResultsUiState.Ready
     val isSavedDetail = ready?.saved == true
@@ -247,6 +252,8 @@ internal fun ResultsScreen(
                     onSave = onSave,
                     onSetPortion = onSetPortion,
                     onOpenPrices = onOpenPrices,
+                    askMessages = askMessages,
+                    onAsk = onAsk,
                     modifier = Modifier.weight(1f),
                 )
             }

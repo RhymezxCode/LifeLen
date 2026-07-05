@@ -53,6 +53,10 @@ class ResultsViewModel @Inject constructor(
     private val _events = MutableSharedFlow<ResultEvent>(extraBufferCapacity = 1)
     val events: SharedFlow<ResultEvent> = _events.asSharedFlow()
 
+    /** The follow-up "Ask about this" thread (agentic multi-turn reasoning over the scanned item). */
+    private val _askMessages = MutableStateFlow<List<AskMessage>>(emptyList())
+    val askMessages: StateFlow<List<AskMessage>> = _askMessages.asStateFlow()
+
     init {
         if (scanId != null) {
             loadSaved(scanId)
@@ -162,4 +166,22 @@ class ResultsViewModel @Inject constructor(
     }
 
     fun currentScanId(): String? = (_uiState.value as? ResultsUiState.Ready)?.scan?.id
+
+    /** Ask a follow-up question about the current scan; the answer streams into [askMessages]. */
+    fun ask(question: String) {
+        val scan = (_uiState.value as? ResultsUiState.Ready)?.scan ?: return
+        if (question.isBlank()) return
+        val index = _askMessages.value.size
+        _askMessages.update { it + AskMessage(question = question.trim(), answer = null) }
+        viewModelScope.launch {
+            val answer = when (val result = scanRepository.ask(scan, question.trim())) {
+                is DataResult.Success -> result.data
+                is DataResult.Error -> result.throwable.message ?: "Couldn't answer that."
+                DataResult.Loading -> "…"
+            }
+            _askMessages.update { list ->
+                list.mapIndexed { i, m -> if (i == index) m.copy(answer = answer) else m }
+            }
+        }
+    }
 }

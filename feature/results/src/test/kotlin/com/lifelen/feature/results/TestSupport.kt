@@ -98,6 +98,9 @@ class FakeScanRepository(
         refreshCalls++
         return refreshResult ?: DataResult.Success(scan)
     }
+
+    var askResult: DataResult<String> = DataResult.Success("It runs Qwen-VL on the edge.")
+    override suspend fun ask(scan: Scan, question: String): DataResult<String> = askResult
 }
 
 class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRepository {

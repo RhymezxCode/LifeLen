@@ -3,6 +3,7 @@ package com.lifelen.feature.results.components
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -54,6 +56,7 @@ import com.lifelen.core.designsystem.component.clickableEnabled
 import com.lifelen.core.designsystem.component.visual
 import com.lifelen.core.designsystem.theme.Amber
 import com.lifelen.core.designsystem.theme.AmberTint
+import com.lifelen.core.designsystem.theme.OnAmber
 import com.lifelen.core.designsystem.theme.BodyStyle
 import com.lifelen.core.designsystem.theme.CaptionStyle
 import com.lifelen.core.designsystem.theme.CatPlant
@@ -74,6 +77,7 @@ import com.lifelen.core.designsystem.theme.TextSecondary
 import com.lifelen.core.model.NutritionInfo
 import com.lifelen.core.model.PriceInfo
 import com.lifelen.core.model.Scan
+import com.lifelen.feature.results.AskMessage
 import com.lifelen.core.model.ScanCategory
 import java.io.File
 import java.text.NumberFormat
@@ -194,6 +198,8 @@ internal fun ReadyBody(
     onSetPortion: (Float) -> Unit,
     onOpenPrices: (String) -> Unit,
     modifier: Modifier = Modifier,
+    askMessages: List<AskMessage> = emptyList(),
+    onAsk: (String) -> Unit = {},
 ) {
     var adjustOpen by remember(scan.id) { mutableStateOf(false) }
     val nutrition = scan.nutrition
@@ -210,6 +216,7 @@ internal fun ReadyBody(
                 scan.category == ScanCategory.DOCUMENT -> DocumentContent(scan)
                 else -> ProductContent(scan, onOpenPrices)
             }
+            AskSection(messages = askMessages, onAsk = onAsk)
         }
         when {
             nutrition != null -> FoodActions(saved, onSave) { adjustOpen = !adjustOpen }
@@ -335,6 +342,81 @@ private fun DocumentActions(scan: Scan, saved: Boolean, onSave: () -> Unit) {
                 context.startActivity(Intent.createChooser(intent, null))
             },
         )
+    }
+}
+
+/** Follow-up "Ask about this" thread — the edge agent's multi-turn reasoning surface. */
+@Composable
+private fun AskSection(messages: List<AskMessage>, onAsk: (String) -> Unit) {
+    var draft by remember { mutableStateOf("") }
+    val send = {
+        if (draft.isNotBlank()) {
+            onAsk(draft)
+            draft = ""
+        }
+    }
+    Spacer(Modifier.height(20.dp))
+    Text("Ask about this", style = LabelStyle, color = TextSecondary)
+    Spacer(Modifier.height(8.dp))
+    messages.forEach { message ->
+        Text("You · ${message.question}", style = CaptionStyle, color = TextFaint)
+        Spacer(Modifier.height(4.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(LifeLensShapes.card)
+                .background(Raised)
+                .padding(12.dp),
+        ) {
+            Text(
+                text = message.answer ?: "Thinking…",
+                style = BodyStyle,
+                color = if (message.answer != null) TextPrimary else TextFaint,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            Modifier
+                .weight(1f)
+                .height(44.dp)
+                .clip(LifeLensShapes.control)
+                .background(Raised)
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            if (draft.isEmpty()) {
+                Text("Ask a question…", style = BodyStyle, color = TextFaint)
+            }
+            BasicTextField(
+                value = draft,
+                onValueChange = { draft = it },
+                singleLine = true,
+                textStyle = BodyStyle.copy(color = TextPrimary),
+                cursorBrush = SolidColor(Amber),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Box(
+            Modifier
+                .size(44.dp)
+                .clip(LifeLensShapes.control)
+                .background(if (draft.isNotBlank()) Amber else Raised)
+                .clickableEnabled(draft.isNotBlank(), send),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                LifeLensIcons.ChevronRight,
+                contentDescription = "Send question",
+                tint = if (draft.isNotBlank()) OnAmber else TextFaint,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 

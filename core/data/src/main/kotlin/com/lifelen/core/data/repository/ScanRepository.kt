@@ -33,6 +33,9 @@ interface ScanRepository {
 
     /** Re-fetches live pricing, recording the prior low as [Scan.previousLowPrice] for the trend pill. */
     suspend fun refreshPrice(scan: Scan, options: ScanOptions): DataResult<Scan>
+
+    /** Multi-turn follow-up: answer a natural-language question about a scanned item via Qwen. */
+    suspend fun ask(scan: Scan, question: String): DataResult<String>
 }
 
 class DefaultScanRepository @Inject constructor(
@@ -106,6 +109,32 @@ class DefaultScanRepository @Inject constructor(
 
     override suspend fun save(scan: Scan) = withContext(ioDispatcher) {
         scanDao.upsert(mapper.toEntity(scan))
+    }
+
+    override suspend fun ask(scan: Scan, question: String): DataResult<String> = withContext(ioDispatcher) {
+        if (apiKeyProvider.dashScopeApiKey().isBlank()) {
+            return@withContext DataResult.Error(
+                IllegalStateException("Add a Qwen (DashScope) key in Settings to ask follow-up questions."),
+            )
+        }
+        try {
+            val id = scan.identification
+            val context = buildString {
+                append("${id.title} — ${id.category.name.lowercase()}.")
+                if (id.summary.isNotBlank()) append(" ${id.summary}")
+                if (id.attributes.isNotEmpty()) {
+                    append(" Attributes: ")
+                    append(id.attributes.entries.joinToString { "${it.key}: ${it.value}" })
+                    append(".")
+                }
+                scan.nutrition?.let { append(" ~${it.calories} kcal.") }
+                scan.price?.let { append(" Price around ${it.currency}${it.lowPrice}.") }
+            }
+            val answer = qwenClient.chat(QwenPrompts.ASK_SYSTEM, QwenPrompts.askUserPrompt(context, question))
+            DataResult.Success(answer.trim())
+        } catch (e: Exception) {
+            DataResult.Error(e)
+        }
     }
 
     override suspend fun refreshPrice(

@@ -70,6 +70,16 @@ object QwenPrompts {
         from the results. If there is not enough data, return empty options with prices set to 0.
     """.trimIndent()
 
+    val ASK_SYSTEM = """
+        You are LifeLens, answering a user's follow-up question about an object they just scanned.
+        Use the provided context about the item. Be concise, accurate and genuinely helpful (2-4
+        sentences). If the context doesn't cover it, answer from general knowledge; if you truly
+        don't know, say so briefly. Plain text only.
+    """.trimIndent()
+
+    fun askUserPrompt(context: String, question: String): String =
+        "Scanned item context:\n$context\n\nQuestion: $question"
+
     fun priceUserPrompt(productTitle: String, resultsBlock: String): String = """
         Product: $productTitle
 
