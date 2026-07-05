@@ -12,10 +12,24 @@ plugins {
 }
 
 // Convenience aggregate task so you can run the whole test suite from one place.
-tasks.register("allTests") {
+// `test` and `connectedAndroidTest` are per-module tasks — they don't exist on the
+// root project — so we wire this aggregate up to each subproject that defines them.
+// Every module has `test` (unit tests); `connectedAndroidTest` exists only on Android
+// modules and needs a running emulator/device, so JVM-only modules (e.g. :core:model)
+// contribute just their unit tests.
+val allTests = tasks.register("allTests") {
     group = "verification"
     description = "Runs all unit tests (across app + core + feature modules) + connected instrumentation tests. " +
         "Instrumentation tests require a running emulator or device."
-    dependsOn("test", "connectedAndroidTest")
+}
+
+subprojects {
+    afterEvaluate {
+        listOf("test", "connectedAndroidTest").forEach { testTaskName ->
+            tasks.findByName(testTaskName)?.let { testTask ->
+                allTests.configure { dependsOn(testTask) }
+            }
+        }
+    }
 }
 

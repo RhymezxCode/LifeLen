@@ -28,12 +28,13 @@ class SettingsScreenTest {
         settings: AppSettings = AppSettings(),
         onThemeMode: (ThemeMode) -> Unit = {},
         onClearLibrary: () -> Unit = {},
+        onSaveKeys: (String, String) -> Unit = { _, _ -> },
     ) {
         compose.setContent {
             LifeLensTheme {
                 SettingsScreen(
                     settings = settings,
-                    onSaveKeys = { _, _ -> },
+                    onSaveKeys = onSaveKeys,
                     onThemeMode = onThemeMode,
                     onPricingChange = {},
                     onHapticsChange = {},
@@ -81,5 +82,16 @@ class SettingsScreenTest {
         compose.onNodeWithText("Delete all").performClick()
 
         assertTrue(cleared)
+    }
+
+    @Test
+    fun `tapping Save keys reports the entered keys`() {
+        var savedDash: String? = null
+        // A non-empty stored key seeds the editable field so Save has something to report.
+        render(settings = AppSettings(dashScopeApiKey = "sk-demo"), onSaveKeys = { dash, _ -> savedDash = dash })
+
+        compose.onNodeWithText("Save keys").performScrollTo().performClick()
+
+        assertEquals("sk-demo", savedDash)
     }
 }

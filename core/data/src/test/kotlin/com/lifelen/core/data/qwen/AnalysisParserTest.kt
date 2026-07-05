@@ -51,6 +51,21 @@ class AnalysisParserTest {
     }
 
     @Test
+    fun `parsePrice returns null for non-JSON prose`() {
+        assertNull(parser.parsePrice("The model refused and returned only prose."))
+    }
+
+    @Test
+    fun `parseAnalysis throws when the response has no JSON object`() {
+        try {
+            parser.parseAnalysis("no json object here")
+            org.junit.Assert.fail("expected an error for content without a JSON object")
+        } catch (e: Exception) {
+            // extractJsonObject errors when there is no '{...}' — the repository maps this to DataResult.Error.
+        }
+    }
+
+    @Test
     fun `parses full nutrition fields`() {
         val raw = """
             {"title":"Jollof rice","category":"food","confidence":0.8,

@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.lifelen.core.designsystem.theme.LifeLensTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -28,7 +29,12 @@ class ResultsScreenTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private fun render(uiState: ResultsUiState, onSave: () -> Unit = {}) {
+    private fun render(
+        uiState: ResultsUiState,
+        onSave: () -> Unit = {},
+        onSetPortion: (Float) -> Unit = {},
+        onOpenPrices: (String) -> Unit = {},
+    ) {
         compose.setContent {
             LifeLensTheme {
                 ResultsScreen(
@@ -39,8 +45,8 @@ class ResultsScreenTest {
                     onRetake = {},
                     onRefresh = {},
                     onSave = onSave,
-                    onSetPortion = {},
-                    onOpenPrices = {},
+                    onSetPortion = onSetPortion,
+                    onOpenPrices = onOpenPrices,
                 )
             }
         }
@@ -86,5 +92,42 @@ class ResultsScreenTest {
         compose.onNodeWithText("Save to library").performScrollTo().performClick()
 
         assertTrue(saved)
+    }
+
+    @Test
+    fun `not found state shows the not-found message`() {
+        render(ResultsUiState.NotFound)
+
+        compose.onNodeWithText("Scan not found").assertExists()
+    }
+
+    @Test
+    fun `low confidence prefixes the title with Looks like`() {
+        val lowConf = sampleElectronics().let {
+            it.copy(identification = it.identification.copy(confidence = 0.5f))
+        }
+        render(ResultsUiState.Ready(lowConf, saved = false))
+
+        compose.onNodeWithText("Looks like", substring = true).assertExists()
+    }
+
+    @Test
+    fun `tapping the sellers pill opens prices for the scan`() {
+        var openedId: String? = null
+        render(ResultsUiState.Ready(sampleElectronics("e1"), saved = false), onOpenPrices = { openedId = it })
+
+        compose.onNodeWithText("sellers", substring = true).performScrollTo().performClick()
+
+        assertEquals("e1", openedId)
+    }
+
+    @Test
+    fun `stepping the portion invokes onSetPortion`() {
+        var stepped = false
+        render(ResultsUiState.Ready(sampleFood(), saved = false), onSetPortion = { stepped = true })
+
+        compose.onNodeWithContentDescription("Increase").performScrollTo().performClick()
+
+        assertTrue(stepped)
     }
 }

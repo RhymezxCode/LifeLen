@@ -59,4 +59,20 @@ class PricesScreenTest {
 
         assertEquals(PriceCondition.RENEWED, selected)
     }
+
+    @Test
+    fun `the cheapest new listing carries the Best price badge`() {
+        render(PricesUiState(title = "MacBook Air 13-inch", price = samplePrice()))
+
+        compose.onNodeWithText("Best price").assertExists()
+    }
+
+    @Test
+    fun `tapping a seller row confirms before opening an external site`() {
+        render(PricesUiState(title = "MacBook Air 13-inch", price = samplePrice()))
+
+        compose.onNodeWithText("Amazon").performClick()
+
+        compose.onNodeWithText("This opens an external site.").assertIsDisplayed()
+    }
 }
