@@ -243,7 +243,7 @@ private fun CameraHome(
         // Idle hint, centered in the lower third.
         if (!uiState.isCapturing) {
             Text(
-                text = "Point at anything to identify",
+                text = "Tap the shutter to identify",
                 style = BodyStyle,
                 color = TextSecondary,
                 textAlign = TextAlign.Center,

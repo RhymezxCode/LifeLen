@@ -1,11 +1,14 @@
 package com.lifelen.feature.prices
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,10 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,14 +34,19 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lifelen.core.designsystem.LifeLensIcons
+import com.lifelen.core.designsystem.component.ButtonType
 import com.lifelen.core.designsystem.component.EmptyState
-import com.lifelen.core.designsystem.component.MediaIconButton
+import com.lifelen.core.designsystem.component.LifeLensButton
 import com.lifelen.core.designsystem.component.ModeChip
+import com.lifelen.core.designsystem.component.RaisedCircleButton
 import com.lifelen.core.designsystem.component.SourceFootnote
 import com.lifelen.core.designsystem.component.clickableEnabled
+import com.lifelen.core.designsystem.theme.Body
 import com.lifelen.core.designsystem.theme.BodyStyle
 import com.lifelen.core.designsystem.theme.CaptionStyle
 import com.lifelen.core.designsystem.theme.Chamber
@@ -52,8 +58,12 @@ import com.lifelen.core.designsystem.theme.Positive
 import com.lifelen.core.designsystem.theme.PositiveTint
 import com.lifelen.core.designsystem.theme.Raised
 import com.lifelen.core.designsystem.theme.Raised2
+import com.lifelen.core.designsystem.theme.LabelStyle
+import com.lifelen.core.designsystem.theme.SubtleBorder
+import com.lifelen.core.designsystem.theme.TextFaint
 import com.lifelen.core.designsystem.theme.TextPrimary
 import com.lifelen.core.designsystem.theme.TextSecondary
+import com.lifelen.core.designsystem.theme.TitleStyle
 import com.lifelen.core.designsystem.theme.NavTitle
 import com.lifelen.core.model.BuyOption
 import com.lifelen.core.model.PriceCondition
@@ -134,23 +144,39 @@ internal fun PricesScreen(
 
     val pending = pendingOption
     if (pending != null) {
-        AlertDialog(
-            onDismissRequest = { pendingOption = null },
-            title = { Text("Open ${pending.retailer}?") },
-            text = { Text("This opens an external site.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        hasConfirmedExternal = true
-                        openOption(pending)
-                        pendingOption = null
-                    },
-                ) { Text("Open") }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingOption = null }) { Text("Cancel") }
-            },
-        )
+        Dialog(onDismissRequest = { pendingOption = null }) {
+            Column(
+                Modifier
+                    .clip(LifeLensShapes.card)
+                    .background(Body)
+                    .border(1.dp, SubtleBorder, LifeLensShapes.card)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("Open ${pending.retailer}?", style = TitleStyle, color = TextPrimary)
+                Text("This opens an external site.", style = BodyStyle, color = TextSecondary)
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    LifeLensButton(
+                        "Cancel",
+                        { pendingOption = null },
+                        Modifier.weight(1f),
+                        type = ButtonType.Secondary,
+                    )
+                    LifeLensButton(
+                        "Open",
+                        {
+                            hasConfirmedExternal = true
+                            openOption(pending)
+                            pendingOption = null
+                        },
+                        Modifier.weight(1f),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -167,11 +193,10 @@ private fun NavBar(
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        MediaIconButton(
+        RaisedCircleButton(
             icon = LifeLensIcons.ChevronLeft,
             contentDescription = "Back",
             onClick = onBack,
-            size = 38,
         )
         Column(
             modifier = Modifier.weight(1f),
@@ -182,11 +207,10 @@ private fun NavBar(
                 Text(title, style = CaptionStyle, color = TextSecondary, maxLines = 1)
             }
         }
-        MediaIconButton(
+        RaisedCircleButton(
             icon = LifeLensIcons.Refresh,
             contentDescription = "Refresh",
             onClick = onRefresh,
-            size = 38,
         )
     }
 }
@@ -197,6 +221,7 @@ private fun PriceSummaryStrip(price: PriceInfo, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .height(IntrinsicSize.Min)
             .clip(LifeLensShapes.card)
             .background(Raised)
             .padding(14.dp),
@@ -252,7 +277,7 @@ private fun VerticalHairline() {
     Box(
         Modifier
             .width(1.dp)
-            .height(28.dp)
+            .fillMaxHeight()
             .background(Hairline),
     )
 }
@@ -320,11 +345,12 @@ private fun PriceList(
             itemsIndexed(
                 items = primaryOptions,
                 key = { index, option -> "sel-$index-${option.url}" },
-            ) { _, option ->
+            ) { index, option ->
                 PriceRow(
                     option = option,
                     isBest = cheapestNew != null && option == cheapestNew,
                     onTap = { onRowTap(option) },
+                    showDivider = !(renewedOptions.isEmpty() && index == primaryOptions.lastIndex),
                 )
             }
         }
@@ -334,11 +360,12 @@ private fun PriceList(
             itemsIndexed(
                 items = renewedOptions,
                 key = { index, option -> "renewed-$index-${option.url}" },
-            ) { _, option ->
+            ) { index, option ->
                 PriceRow(
                     option = option,
                     isBest = false,
                     onTap = { onRowTap(option) },
+                    showDivider = index < renewedOptions.lastIndex,
                 )
             }
         }
@@ -358,6 +385,7 @@ private fun PriceRow(
     isBest: Boolean,
     onTap: () -> Unit,
     modifier: Modifier = Modifier,
+    showDivider: Boolean = true,
 ) {
     val priceColor = if (option.condition == PriceCondition.NEW) TextPrimary else TextSecondary
     Column(modifier = modifier.clickableEnabled(true, onTap)) {
@@ -376,7 +404,7 @@ private fun PriceRow(
                     .background(Raised2),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(option.retailer.initials(), style = DataSm, color = TextPrimary)
+                Text(option.retailer.initials(), style = LabelStyle, color = TextPrimary)
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -408,12 +436,12 @@ private fun PriceRow(
                             .padding(top = 4.dp)
                             .clip(LifeLensShapes.chip)
                             .background(PositiveTint)
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                            .padding(horizontal = 9.dp, vertical = 2.dp),
                     )
                 }
             }
         }
-        HorizontalDivider(color = Hairline, thickness = 1.dp)
+        if (showDivider) HorizontalDivider(color = Hairline, thickness = 1.dp)
     }
 }
 
@@ -421,8 +449,8 @@ private fun PriceRow(
 private fun GroupHeader(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
-        style = CaptionStyle,
-        color = TextSecondary,
+        style = CaptionStyle.copy(letterSpacing = 0.7.sp),
+        color = TextFaint,
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 14.dp, bottom = 4.dp),

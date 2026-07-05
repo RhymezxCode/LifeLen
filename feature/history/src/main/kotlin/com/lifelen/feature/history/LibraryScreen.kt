@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -34,7 +35,7 @@ import coil3.compose.AsyncImage
 import com.lifelen.core.designsystem.LifeLensIcons
 import com.lifelen.core.designsystem.component.BracketThumb
 import com.lifelen.core.designsystem.component.EmptyState
-import com.lifelen.core.designsystem.component.MediaIconButton
+import com.lifelen.core.designsystem.component.RaisedCircleButton
 import com.lifelen.core.designsystem.component.LifeLensSearchBar
 import com.lifelen.core.designsystem.component.ModeChip
 import com.lifelen.core.designsystem.component.TrendPill
@@ -112,7 +113,7 @@ internal fun LibraryScreen(
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                MediaIconButton(
+                RaisedCircleButton(
                     icon = LifeLensIcons.ChevronLeft,
                     contentDescription = "Back",
                     onClick = onBack,
@@ -176,8 +177,12 @@ internal fun LibraryScreen(
                 ) {
                     uiState.groups.forEach { group ->
                         item(key = "header_${group.header}") { GroupHeader(group.header) }
-                        items(group.scans, key = { it.id }) { scan ->
-                            LibraryRow(scan = scan, onClick = { onOpenScan(scan.id) })
+                        itemsIndexed(group.scans, key = { _, s -> s.id }) { index, scan ->
+                            LibraryRow(
+                                scan = scan,
+                                onClick = { onOpenScan(scan.id) },
+                                showDivider = index < group.scans.lastIndex,
+                            )
                         }
                     }
                 }
@@ -206,7 +211,7 @@ private fun GroupHeader(text: String) {
 }
 
 @Composable
-private fun LibraryRow(scan: Scan, onClick: () -> Unit) {
+private fun LibraryRow(scan: Scan, onClick: () -> Unit, showDivider: Boolean = true) {
     Column {
         Row(
             modifier = Modifier
@@ -228,7 +233,7 @@ private fun LibraryRow(scan: Scan, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(
                     text = scan.title,
-                    style = TitleStyle.copy(fontSize = 13.sp),
+                    style = TitleStyle.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium),
                     color = TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -248,7 +253,7 @@ private fun LibraryRow(scan: Scan, onClick: () -> Unit) {
                         scan.price?.let { price ->
                             Text(
                                 text = "${price.currency}${price.lowPrice.money()}",
-                                style = DataMd,
+                                style = DataMd.copy(fontSize = 13.sp),
                                 color = TextPrimary,
                             )
                         }
@@ -257,7 +262,7 @@ private fun LibraryRow(scan: Scan, onClick: () -> Unit) {
                         scan.nutrition?.let { nutrition ->
                             Text(
                                 text = "${nutrition.calories} kcal",
-                                style = DataMd,
+                                style = DataMd.copy(fontSize = 13.sp),
                                 color = TextPrimary,
                             )
                         }
@@ -273,7 +278,7 @@ private fun LibraryRow(scan: Scan, onClick: () -> Unit) {
                                 tint = CatPlant,
                                 modifier = Modifier.size(14.dp),
                             )
-                            Text("Water in 3 d", style = DataSm, color = Positive)
+                            Text("Water in 3 d", style = CaptionStyle, color = CatPlant)
                         }
 
                     else -> Unit
@@ -290,12 +295,14 @@ private fun LibraryRow(scan: Scan, onClick: () -> Unit) {
             }
         }
 
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(Hairline),
-        )
+        if (showDivider) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Hairline),
+            )
+        }
     }
 }
 
@@ -322,7 +329,7 @@ private fun FloatingScanButton(onClick: () -> Unit, modifier: Modifier = Modifie
 
 private val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
 
-private fun timeOf(millis: Long): String = timeFormat.format(Date(millis))
+private fun timeOf(millis: Long): String = timeFormat.format(Date(millis)).lowercase(Locale.getDefault())
 
 /** Formats a price magnitude with thousands separators, dropping ".00" on whole values. */
 private fun Double.money(): String {
