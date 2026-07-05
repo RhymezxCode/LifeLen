@@ -6,7 +6,7 @@ import com.lifelen.core.database.entity.ScanEntity
 
 @Database(
     entities = [ScanEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class LifeLensDatabase : RoomDatabase() {

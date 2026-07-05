@@ -20,4 +20,5 @@ data class ScanEntity(
     val priceJson: String?,
     val createdAt: Long,
     val isFavorite: Boolean,
+    val previousLowPrice: Double? = null,
 )
