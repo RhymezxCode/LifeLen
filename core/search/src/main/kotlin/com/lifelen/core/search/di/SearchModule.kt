@@ -1,8 +1,9 @@
 package com.lifelen.core.search.di
 
+import com.lifelen.core.search.FallbackSearchClient
 import com.lifelen.core.search.SearchClient
+import com.lifelen.core.search.google.GoogleScrapeApi
 import com.lifelen.core.search.serper.SerperApi
-import com.lifelen.core.search.serper.SerperSearchClient
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -20,9 +21,10 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 abstract class SearchModule {
 
+    // Serper when a key is configured, else a keyless Google scrape (see FallbackSearchClient).
     @Binds
     @Singleton
-    abstract fun bindSearchClient(impl: SerperSearchClient): SearchClient
+    abstract fun bindSearchClient(impl: FallbackSearchClient): SearchClient
 
     companion object {
 
@@ -41,6 +43,20 @@ abstract class SearchModule {
                 .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
                 .build()
                 .create(SerperApi::class.java)
+        }
+
+        @Provides
+        @Singleton
+        fun provideGoogleScrapeApi(): GoogleScrapeApi {
+            val client = OkHttpClient.Builder()
+                .connectTimeout(20, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .build()
+            return Retrofit.Builder()
+                .baseUrl(GoogleScrapeApi.BASE_URL)
+                .client(client)
+                .build()
+                .create(GoogleScrapeApi::class.java)
         }
     }
 }
