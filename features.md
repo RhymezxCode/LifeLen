@@ -37,7 +37,7 @@ One Qwen call decides what kind of thing it's looking at and shapes the output a
 
 **Technical requirements**
 - Structured-output system prompt in `:core:network` that returns `category`.
-- `CategoryHandler` strategy/registry in `:core:data` (`FoodHandler`, `ElectronicsHandler`, `BookHandler`, `ClothingHandler`, `GenericHandler`) selected by `ScanCategory`.
+- `CategoryHandler` strategy/registry in `:core:data` (`FoodHandler`, `ElectronicsHandler`, `BookHandler`, `ClothingHandler`, `PlantHandler`, `DocumentHandler`, `GenericHandler`) selected by `ScanCategory`.
 - `:core:model` — `ScanCategory` enum.
 
 ### 3. Product spec sheet
@@ -87,13 +87,13 @@ Extract readable text from documents, labels, and signs using Qwen-VL's built-in
 
 **User workflow**
 1. Scan a document or sign.
-2. View the extracted text.
-3. Copy or share it.
+2. Read the transcription on the result sheet's "Transcribed text" card.
+3. Share it via the system share sheet.
 
 **Technical requirements**
-- `:core:network` — Qwen-VL OCR via the same multimodal call.
-- `GenericHandler` in `:core:data` for the general/text path.
-- `:feature:results` — selectable/copyable text.
+- `:core:network` — Qwen-VL OCR via the same multimodal call; the IDENTIFY prompt transcribes visible text into the `Text` attribute.
+- `DocumentHandler` in `:core:data` routes `ScanCategory.DOCUMENT` (bound `@IntoSet` in `DataModule`).
+- `:feature:results` — `DocumentResultBody` renders the transcription with an `ACTION_SEND` share action.
 
 ### 7. Searchable scan history
 Every scan is saved locally and searchable, with its image, identification, and price/nutrition data.
@@ -114,15 +114,15 @@ Every scan is saved locally and searchable, with its image, identification, and 
 Manage saved scans.
 
 **User workflow**
-1. In History (or on a result), tap the star to favorite.
-2. Tap a scan to re-open it.
-3. Tap share to send a scan card / summary.
-4. Swipe or tap delete to remove a scan.
+1. Tap a scan in the Library to re-open its result.
+2. On a saved result, tap the heart to favorite / unfavorite it.
+3. Tap share to send the scan's summary via the system share sheet.
+4. Tap delete to remove the scan; the screen pops back to the Library.
 
 **Technical requirements**
-- `:core:database` — update/delete DAO methods, `isFavorite` field.
-- `:core:data` — `HistoryRepository` mutations.
-- `:feature:history` / `:feature:results` — actions and Android share intent.
+- `:core:database` — `setFavorite` / `deleteById` DAO methods, `isFavorite` field.
+- `:core:data` — `HistoryRepository.toggleFavorite` / `delete` mutations.
+- `:feature:results` — `ResultsViewModel.toggleFavorite()` / `delete()` (the latter emits `ResultEvent.Deleted` to pop back); heart/trash controls on the saved-detail sheet; Android `ACTION_SEND` share.
 
 ### 9. API keys & settings screen
 Enter API keys and preferences in-app; keys are stored securely and never hard-coded.
@@ -149,6 +149,7 @@ Every screen handles the unhappy paths gracefully.
 **Technical requirements**
 - `:core:common` — `Result` wrapper + typed error model.
 - ViewModels expose sealed `UiState` (Loading/Success/Empty/Error).
+- `:core:data` — `NetworkMonitor` connectivity check; an offline fresh scan resolves to `ResultsUiState.Offline` carrying the most recent saved scan (Room), with one-tap `retry()`.
 - `:core:designsystem` — shared `LoadingIndicator`, error, and empty components.
 
 ---
@@ -269,7 +270,7 @@ Always show the most recent result and full history when offline.
 1. Lose connectivity.
 2. Still open history and the last scan.
 
-**Technical requirements** — Room as source of truth in `:core:database`; cache policy in `:core:data`. *(A basic form of this is in the MVP as the offline fallback.)*
+**Technical requirements** — Room as source of truth in `:core:database`; cache policy in `:core:data`. *(Shipped in the MVP: an offline fresh scan falls back to the most recent saved scan via `NetworkMonitor` + `ResultsUiState.Offline` with retry; browsing the full library offline is the remaining stretch.)*
 
 #### Shareable scan cards
 Generate a polished image card for a scan to share to social/chat.
@@ -349,7 +350,7 @@ to suit lock contexts on launchers/OEMs that still allow it.)*
 | Product spec sheet | `ElectronicsHandler` (`:core:data`), `:feature:results` |
 | Live price grounding | `:core:search`, `:core:network`, `:core:data` |
 | Food & nutrition | `FoodHandler` (`:core:data`), `:feature:results` |
-| Document / OCR | `:core:network`, `GenericHandler` |
+| Document / OCR | `:core:network`, `DocumentHandler` (`:core:data`), `:feature:results` |
 | Scan history + manage | `:core:database`, `:core:data`, `:feature:history` |
 | Settings & API keys | `:core:datastore`, `:feature:settings` |
 | Robust UI states | `:core:common`, `:core:designsystem`, all features |

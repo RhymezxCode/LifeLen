@@ -30,8 +30,9 @@ Read the full vision and story in **[ABOUT.md](ABOUT.md)**.
 - **Product intelligence** — identification, full spec sheet, current market price range, and where to buy it cheapest with live shopping links.
 - **Food & nutrition** — recognizes dishes and ingredients and returns calories plus protein/carbs/fat macros and a portion estimate.
 - **Live pricing (search grounding)** — prices are grounded against a live web/shopping search so they stay current, not stale model memory.
-- **Searchable scan history** — every scan is saved locally with its image, identification, price/nutrition data, and timestamp. Favorite, re-open, share, and delete.
-- **Document text extraction** — pull text out of documents, signs, and labels.
+- **Searchable scan history** — every scan is saved locally with its image, identification, price/nutrition data, and timestamp. Favorite, re-open, share, and delete a saved scan from its result sheet.
+- **Document text extraction** — Qwen-VL transcribes text from documents, signs, and labels into a dedicated "Transcribed text" card you can share.
+- **Offline resilience** — a fresh scan attempted without a connection falls back to your most recent saved scan, with one-tap retry when you're back online.
 - **Plant care** — light/water/difficulty/pet-safety stats plus a care card (watering + placement).
 - **Gallery import** — identify an existing photo, not just a live capture.
 - **Home-screen widgets** — five Jetpack Glance widgets: Quick Scan, Last Scan, Library Stats, Daily Calories, and Price Watch.
@@ -80,7 +81,7 @@ Platform targets: `minSdk 24`, `targetSdk 37`, `compileSdk 37`, Java 11 (`:core:
 
 LifeLens follows a Now-in-Android–style multi-module architecture with clean layering and MVVM + unidirectional data flow. UI (Compose) talks to a ViewModel that exposes `StateFlow<UiState>`; the ViewModel talks to repositories in `:core:data`, which hide all data sources (`:core:network` for Qwen, `:core:search`, `:core:database`, `:core:datastore`) behind interfaces. Feature modules never depend on each other.
 
-Enrichment of each scan is handled by a **`CategoryHandler` strategy/registry** in `:core:data` (e.g. `FoodHandler`, `ElectronicsHandler`, `PlantHandler`, `BookHandler`, `ClothingHandler`, `GenericHandler`), selected by the `ScanCategory` that Qwen returns — so adding a new object type is a small, isolated change. The UI is a dark-first, theme-aware design system (`:core:designsystem`) with a `CompositionLocal` palette that also renders in light mode.
+Enrichment of each scan is handled by a **`CategoryHandler` strategy/registry** in `:core:data` (e.g. `FoodHandler`, `ElectronicsHandler`, `PlantHandler`, `BookHandler`, `ClothingHandler`, `DocumentHandler`, `GenericHandler`), selected by the `ScanCategory` that Qwen returns — so adding a new object type is a small, isolated change. The UI is a dark-first, theme-aware design system (`:core:designsystem`) with a `CompositionLocal` palette that also renders in light mode.
 
 ```mermaid
 graph TD
