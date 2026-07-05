@@ -87,15 +87,11 @@ internal fun IdentityHeader(scan: Scan, modifier: Modifier = Modifier) {
     val lowConfidence = scan.identification.confidence < 0.70f
     val title = if (lowConfidence) "Looks like ${scan.title}" else scan.title
     Column(modifier.fillMaxWidth()) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            BracketThumb(size = 46.dp) {
-                AsyncImage(
-                    model = File(scan.imagePath),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IdentityThumb(scan)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = title,
@@ -105,12 +101,6 @@ internal fun IdentityHeader(scan: Scan, modifier: Modifier = Modifier) {
                     overflow = TextOverflow.Ellipsis,
                 )
                 MetaChips(scan)
-                Text(
-                    text = "Not this?",
-                    style = CaptionStyle.copy(textDecoration = TextDecoration.Underline),
-                    color = TextSecondary,
-                    modifier = Modifier.clickableEnabled(true) { /* no-op */ },
-                )
             }
         }
         if (lowConfidence) {
@@ -124,6 +114,29 @@ internal fun IdentityHeader(scan: Scan, modifier: Modifier = Modifier) {
     }
 }
 
+/** Identity thumbnail — bracket tile for products; a plated circle with a cream ring for food. */
+@Composable
+private fun IdentityThumb(scan: Scan) {
+    val image: @Composable () -> Unit = {
+        AsyncImage(
+            model = File(scan.imagePath),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+    if (scan.category == ScanCategory.FOOD) {
+        Box(
+            Modifier.size(46.dp).clip(CircleShape).background(Color(0xFFE8E2D6)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.size(40.dp).clip(CircleShape).background(Raised)) { image() }
+        }
+    } else {
+        BracketThumb(size = 46.dp) { image() }
+    }
+}
+
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun MetaChips(scan: Scan) {
@@ -133,9 +146,18 @@ private fun MetaChips(scan: Scan) {
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         CategoryChip(label = visual.label, color = visual.color, tint = visual.tint)
-        ConfidenceBadge(confidence = scan.identification.confidence)
         if (scan.category == ScanCategory.FOOD) {
             NeutralChip("Photo estimate")
+        } else {
+            ConfidenceBadge(confidence = scan.identification.confidence)
+            Text(
+                text = "Not this?",
+                style = CaptionStyle.copy(textDecoration = TextDecoration.Underline),
+                color = TextSecondary,
+                modifier = Modifier
+                    .align(Alignment.CenterVertically)
+                    .clickableEnabled(true) { /* no-op */ },
+            )
         }
     }
 }
@@ -453,7 +475,7 @@ internal fun FoodResultBody(
             Text(
                 text = "${caloriesScaled * 100 / 2000}% of a 2,000 kcal day",
                 style = CaptionStyle,
-                color = TextSecondary,
+                color = TextFaint,
                 textAlign = TextAlign.End,
                 modifier = Modifier.padding(bottom = 4.dp),
             )
@@ -463,8 +485,8 @@ internal fun FoodResultBody(
         MacroBar(protein = proteinScaled, carbs = carbsScaled, fat = fatScaled)
 
         Spacer(Modifier.height(18.dp))
-        NutritionRow(label = "Fiber", value = "${fiberScaled}g")
-        NutritionRow(label = "Sugars", value = "${sugarsScaled}g")
+        NutritionRow(label = "Fiber", value = "$fiberScaled g")
+        NutritionRow(label = "Sugars", value = "$sugarsScaled g")
         NutritionRow(label = "Sodium", value = "$sodiumScaled mg", trailingChevron = true)
 
         Spacer(Modifier.height(24.dp))
@@ -513,7 +535,7 @@ internal fun PortionRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Portion", style = BodyStyle, color = TextPrimary)
+        Text("Portion", style = LabelStyle, color = TextSecondary)
         Stepper(
             valueText = "${factor.stepLabel()} · ~${(350 * factor).roundToInt()} g",
             onMinus = onMinus,
@@ -554,7 +576,7 @@ internal fun MacroBar(
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             segments.forEach { (label, grams, color) ->
                 Row(
@@ -585,7 +607,7 @@ internal fun NutritionRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(label, style = BodyStyle, color = TextSecondary)
+            Text(label, style = LabelStyle, color = TextSecondary)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),

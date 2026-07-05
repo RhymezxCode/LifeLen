@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import com.lifelen.core.designsystem.theme.Amber
 import com.lifelen.core.designsystem.theme.AmberTint
@@ -54,7 +55,8 @@ fun CategoryChip(
     Text(
         text = label,
         style = LabelStyle,
-        color = color,
+        // HTML lightens the category label over its own tint (e.g. #8CC2F0 on the electronics tint).
+        color = lerp(color, Color.White, 0.28f),
         modifier = modifier
             .clip(LifeLensShapes.chip)
             .background(tint)

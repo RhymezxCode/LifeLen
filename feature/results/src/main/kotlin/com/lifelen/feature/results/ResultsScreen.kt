@@ -199,7 +199,7 @@ internal fun ResultsScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .fillMaxHeight(0.62f)
+                .fillMaxHeight(0.60f)
                 .clip(LifeLensShapes.sheet)
                 .background(Body)
                 .border(1.dp, SubtleBorder, LifeLensShapes.sheet)
