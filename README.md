@@ -193,7 +193,7 @@ Lifelen/                          # rootProject.name = "lifelen"
 ### Prerequisites
 
 - **Android Studio** (latest canary/preview recommended — the project uses AGP `9.4.0-alpha03`).
-- **JDK 11** (or a toolchain that provides Java 11).
+- **JDK 21** (the Gradle daemon runs on Java 21; module bytecode targets Java 11/17).
 - An **Android device or emulator** running API 24+ (Android 7.0 or newer) with a camera.
 - A **DashScope (Qwen)** API key and, for live pricing, a **search** API key. See **[docs/API-KEYS.md](docs/API-KEYS.md)**.
 
@@ -227,10 +227,10 @@ Open the project in Android Studio, let Gradle sync, then run the `app` configur
 # Build a debug APK
 ./gradlew assembleDebug
 
-# Run all unit tests
-./gradlew test
+# Run the full unit + Compose UI/E2E suite on the JVM — Robolectric, no device needed
+./gradlew testDebugUnitTest :core:model:test
 
-# Run instrumented / Compose UI tests (device or emulator required)
+# Run the app's instrumented design-system tests (device/emulator required)
 ./gradlew connectedDebugAndroidTest
 
 # Lint
@@ -249,7 +249,7 @@ Open the project in Android Studio, let Gradle sync, then run the `app` configur
 3. `ScanRepository` sends the image to **Qwen-VL** (DashScope) with a structured-output system prompt and receives a structured `Identification`.
 4. The `ScanCategory` selects a `CategoryHandler` (e.g. `FoodHandler`, `ElectronicsHandler`) that enriches the result — nutrition for food, specs + live pricing for products.
 5. For products, a `SearchClient` fetches live listings, which Qwen synthesizes into a `PriceInfo` (price range + cheapest buy options).
-6. The `Scan` is persisted to Room, the results screen opens, and the scan appears in history.
+6. The result sheet opens over the frozen frame; tapping **Save to library** persists the `Scan` to Room, after which it appears in the Library.
 
 A full implementation walkthrough is in **[TECHNICAL.md](TECHNICAL.md)**.
 
