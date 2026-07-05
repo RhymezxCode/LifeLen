@@ -11,27 +11,22 @@ import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,54 +34,81 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lifelen.core.designsystem.component.MessageState
+import coil3.compose.AsyncImage
+import com.lifelen.core.designsystem.LifeLensIcons
+import com.lifelen.core.designsystem.component.ButtonType
+import com.lifelen.core.designsystem.component.BracketThumb
+import com.lifelen.core.designsystem.component.DetectionBrackets
+import com.lifelen.core.designsystem.component.DetectionState
+import com.lifelen.core.designsystem.component.LifeLensButton
+import com.lifelen.core.designsystem.component.MediaIconButton
+import com.lifelen.core.designsystem.component.ModeChip
+import com.lifelen.core.designsystem.component.RaisedIconButton
+import com.lifelen.core.designsystem.component.ShutterButton
+import com.lifelen.core.designsystem.component.ShutterState
+import com.lifelen.core.designsystem.component.clickableEnabled
+import com.lifelen.core.designsystem.theme.Amber
+import com.lifelen.core.designsystem.theme.BodyStyle
+import com.lifelen.core.designsystem.theme.Chamber
+import com.lifelen.core.designsystem.theme.DataSm
+import com.lifelen.core.designsystem.theme.Display
+import com.lifelen.core.designsystem.theme.Hairline
+import com.lifelen.core.designsystem.theme.OnAmber
+import com.lifelen.core.designsystem.theme.Raised
+import com.lifelen.core.designsystem.theme.TextPrimary
+import com.lifelen.core.designsystem.theme.TextSecondary
 import com.lifelen.feature.scanner.util.toDownscaledJpeg
-import kotlinx.coroutines.flow.collectLatest
+import java.io.File
+
+/** Selectable capture modes shown in the [ModeStrip]. Visual-only for v1. */
+private val ScanModes = listOf("Auto", "Electronics", "Food", "Text")
 
 @Composable
 fun ScannerRoute(
-    onScanComplete: (String) -> Unit,
-    onOpenHistory: () -> Unit,
+    onNavigateToResult: () -> Unit,
+    onOpenLibrary: () -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: ScannerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
-        viewModel.events.collectLatest { event ->
-            when (event) {
-                is ScannerEvent.ScanComplete -> onScanComplete(event.scanId)
-            }
-        }
+        viewModel.events.collect { onNavigateToResult() }
     }
 
     ScannerScreen(
         uiState = uiState,
-        onCapture = viewModel::analyze,
+        onCaptured = viewModel::onCaptured,
         onCaptureError = viewModel::onCaptureError,
         onDismissError = viewModel::dismissError,
-        onOpenHistory = onOpenHistory,
+        onSelectMode = viewModel::selectMode,
+        onOpenLibrary = onOpenLibrary,
         onOpenSettings = onOpenSettings,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ScannerScreen(
     uiState: ScannerUiState,
-    onCapture: (ByteArray) -> Unit,
+    onCaptured: (ByteArray) -> Unit,
     onCaptureError: (String) -> Unit,
     onDismissError: () -> Unit,
-    onOpenHistory: () -> Unit,
+    onSelectMode: (String) -> Unit,
+    onOpenLibrary: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -100,77 +122,56 @@ internal fun ScannerScreen(
         ActivityResultContracts.RequestPermission(),
     ) { granted -> hasPermission = granted }
 
+    // Auto-prompt the first time the screen appears without permission.
     LaunchedEffect(Unit) {
         if (!hasPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.error) {
-        uiState.error?.let {
-            snackbarHostState.showSnackbar(it)
+        uiState.error?.let { message ->
+            snackbarHostState.showSnackbar(message)
             onDismissError()
         }
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("LifeLens") },
-                actions = {
-                    IconButton(onClick = onOpenHistory) {
-                        Icon(Icons.Filled.History, contentDescription = "Scan history")
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
-                    }
-                },
-            )
-        },
+        containerColor = Chamber,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+    ) { _ ->
+        // Camera home is intentionally full-bleed; Scaffold insets are ignored.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Chamber),
+        ) {
             if (hasPermission) {
-                CameraPreview(
-                    isAnalyzing = uiState.isAnalyzing,
-                    onCapture = onCapture,
-                    onError = onCaptureError,
+                CameraHome(
+                    uiState = uiState,
+                    onCaptured = onCaptured,
+                    onCaptureError = onCaptureError,
+                    onSelectMode = onSelectMode,
+                    onOpenLibrary = onOpenLibrary,
+                    onOpenSettings = onOpenSettings,
                 )
             } else {
-                MessageState(
-                    icon = Icons.Filled.CameraAlt,
-                    title = "Camera access needed",
-                    description = "LifeLens uses the camera to identify what you point it at.",
-                    actionLabel = "Enable camera",
-                    onAction = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                PermissionPrime(
+                    onEnable = { permissionLauncher.launch(Manifest.permission.CAMERA) },
                 )
-            }
-
-            if (uiState.isAnalyzing) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.55f)),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-                ) {
-                    CircularProgressIndicator(color = Color.White)
-                    Text(
-                        text = "Analyzing with Qwen…",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(top = 16.dp),
-                    )
-                }
             }
         }
     }
 }
 
+/** S02 — the live viewfinder with camera chrome. */
 @Composable
-private fun CameraPreview(
-    isAnalyzing: Boolean,
-    onCapture: (ByteArray) -> Unit,
-    onError: (String) -> Unit,
+private fun CameraHome(
+    uiState: ScannerUiState,
+    onCaptured: (ByteArray) -> Unit,
+    onCaptureError: (String) -> Unit,
+    onSelectMode: (String) -> Unit,
+    onOpenLibrary: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -183,43 +184,223 @@ private fun CameraPreview(
         controller.bindToLifecycle(lifecycleOwner)
     }
 
+    fun capture() {
+        if (uiState.isCapturing) return
+        controller.takePicture(
+            ContextCompat.getMainExecutor(context),
+            object : ImageCapture.OnImageCapturedCallback() {
+                override fun onCaptureSuccess(image: ImageProxy) {
+                    val bytes = runCatching { image.toDownscaledJpeg() }
+                        .also { image.close() }
+                        .getOrNull()
+                    if (bytes != null) onCaptured(bytes) else onCaptureError("Couldn't read the photo.")
+                }
+
+                override fun onError(exc: ImageCaptureException) {
+                    onCaptureError(exc.message ?: "Couldn't take that photo. Try again.")
+                }
+            },
+        )
+    }
+
     Box(Modifier.fillMaxSize()) {
         AndroidView(
             factory = { ctx -> PreviewView(ctx).apply { this.controller = controller } },
             modifier = Modifier.fillMaxSize(),
         )
 
-        FloatingActionButton(
-            onClick = {
-                if (isAnalyzing) return@FloatingActionButton
-                controller.takePicture(
-                    ContextCompat.getMainExecutor(context),
-                    object : ImageCapture.OnImageCapturedCallback() {
-                        override fun onCaptureSuccess(image: ImageProxy) {
-                            val bytes = try {
-                                image.toDownscaledJpegSafely()
-                            } finally {
-                                image.close()
-                            }
-                            if (bytes != null) onCapture(bytes) else onError("Couldn't read the photo.")
-                        }
+        // Top controls (y ≈ 54, 16dp gutters).
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(top = 54.dp, start = 16.dp, end = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            MediaIconButton(LifeLensIcons.Flash, "Flash", {})
+            MediaIconButton(LifeLensIcons.Settings, "Settings", onOpenSettings)
+        }
 
-                        override fun onError(exc: ImageCaptureException) {
-                            onError(exc.message ?: "Capture failed.")
-                        }
-                    },
-                )
-            },
-            shape = CircleShape,
+        // Idle hint, centered in the lower third.
+        if (!uiState.isCapturing) {
+            Text(
+                text = "Point at anything to identify",
+                style = BodyStyle,
+                color = TextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(BiasAlignment(0f, 0.35f))
+                    .padding(horizontal = 32.dp),
+            )
+        }
+
+        // Mode strip + bottom chrome pinned to the bottom.
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp)
-                .size(72.dp),
+                .fillMaxWidth(),
         ) {
-            Icon(Icons.Filled.CameraAlt, contentDescription = "Capture and identify")
+            ModeStrip(
+                selected = uiState.selectedMode,
+                onSelect = onSelectMode,
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
+            BottomChrome(
+                uiState = uiState,
+                onCapture = { capture() },
+                onOpenLibrary = onOpenLibrary,
+            )
         }
     }
 }
 
-private fun ImageProxy.toDownscaledJpegSafely(): ByteArray? =
-    runCatching { toDownscaledJpeg() }.getOrNull()
+/** Horizontal, centered row of capture-mode chips just above the bottom chrome. */
+@Composable
+private fun ModeStrip(
+    selected: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ScanModes.forEach { mode ->
+            ModeChip(
+                text = mode,
+                selected = mode == selected,
+                onClick = { onSelect(mode) },
+            )
+        }
+    }
+}
+
+/** 118dp Chamber bar with gallery, shutter and library controls. */
+@Composable
+private fun BottomChrome(
+    uiState: ScannerUiState,
+    onCapture: () -> Unit,
+    onOpenLibrary: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(118.dp)
+            .background(Chamber)
+            .drawBehind {
+                drawLine(
+                    color = Hairline,
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            }
+            .padding(start = 38.dp, end = 38.dp, bottom = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RaisedIconButton(
+            icon = LifeLensIcons.Gallery,
+            contentDescription = "Import from gallery",
+            onClick = {},
+            modifier = Modifier.size(42.dp),
+        )
+        ShutterButton(
+            state = if (uiState.isCapturing) ShutterState.Processing else ShutterState.Idle,
+            onClick = onCapture,
+        )
+        LibraryThumb(
+            thumbPath = uiState.lastThumbPath,
+            count = uiState.libraryCount,
+            onOpenLibrary = onOpenLibrary,
+        )
+    }
+}
+
+/** 42dp bracket thumbnail of the latest scan with an amber count badge; opens the library. */
+@Composable
+private fun LibraryThumb(
+    thumbPath: String?,
+    count: Int,
+    onOpenLibrary: () -> Unit,
+) {
+    Box(modifier = Modifier.clickableEnabled(true, onOpenLibrary)) {
+        BracketThumb(size = 42.dp) {
+            if (thumbPath != null) {
+                AsyncImage(
+                    model = File(thumbPath),
+                    contentDescription = "Open library",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Box(Modifier.fillMaxSize().background(Raised))
+            }
+        }
+        if (count > 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .sizeIn(minWidth = 17.dp, minHeight = 17.dp)
+                    .clip(CircleShape)
+                    .background(Amber)
+                    .padding(horizontal = 4.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = count.toString(),
+                    style = DataSm,
+                    color = OnAmber,
+                )
+            }
+        }
+    }
+}
+
+/** S01 — the permission prime shown until camera access is granted. */
+@Composable
+private fun PermissionPrime(
+    onEnable: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Chamber)
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        DetectionBrackets(
+            state = DetectionState.Locked,
+            modifier = Modifier.size(120.dp),
+        )
+        Spacer(Modifier.height(32.dp))
+        Text(
+            text = "Point LifeLens at anything",
+            style = Display,
+            color = TextPrimary,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = "Identify anything you see — get specs, prices, and nutrition in a tap.",
+            style = BodyStyle,
+            color = TextSecondary,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(32.dp))
+        LifeLensButton(
+            text = "Enable camera",
+            onClick = onEnable,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+        LifeLensButton(
+            text = "Not now",
+            onClick = {},
+            modifier = Modifier.fillMaxWidth(),
+            type = ButtonType.Ghost,
+        )
+    }
+}
