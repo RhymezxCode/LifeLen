@@ -43,6 +43,7 @@ private class FakeSettingsRepository(
     override suspend fun setThemeMode(mode: ThemeMode) = Unit
     override suspend fun setHapticsEnabled(enabled: Boolean) = Unit
     override suspend fun setAutoSaveScans(enabled: Boolean) = Unit
+    override suspend fun setAutoScan(enabled: Boolean) = Unit
     override suspend fun setRememberKeys(remember: Boolean) = Unit
     override suspend fun seedDefaultsIfEmpty(dashScopeKey: String, searchKey: String) = Unit
 }
