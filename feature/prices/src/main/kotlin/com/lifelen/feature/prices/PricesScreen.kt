@@ -44,6 +44,7 @@ import com.lifelen.core.designsystem.LifeLensIcons
 import com.lifelen.core.designsystem.component.ButtonType
 import com.lifelen.core.designsystem.component.EmptyState
 import com.lifelen.core.designsystem.component.LifeLensButton
+import com.lifelen.core.designsystem.component.LoadingDots
 import com.lifelen.core.designsystem.component.ModeChip
 import com.lifelen.core.designsystem.component.RaisedCircleButton
 import com.lifelen.core.designsystem.component.SourceFootnote
@@ -114,10 +115,26 @@ internal fun PricesScreen(
         NavBar(title = uiState.title, onBack = onBack, onRefresh = onRefresh)
 
         val price = uiState.price
-        if (uiState.notFound || price == null) {
+        if (uiState.isRefreshing && price == null) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                LoadingDots(color = TextSecondary)
+                Text(
+                    "Finding the best prices…",
+                    style = CaptionStyle,
+                    color = TextSecondary,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+        } else if (uiState.notFound || price == null) {
             EmptyState(
                 headline = "No pricing",
-                body = "We couldn't load prices for this item.",
+                body = "We couldn't find sellers for this item right now.",
                 modifier = Modifier.fillMaxWidth(),
                 ctaText = "Go back",
                 onCta = onBack,

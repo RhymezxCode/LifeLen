@@ -37,6 +37,7 @@ class ResultsScreenTest {
         onToggleFavorite: () -> Unit = {},
         onDelete: () -> Unit = {},
         onRetry: () -> Unit = {},
+        onRetake: () -> Unit = {},
     ) {
         compose.setContent {
             LifeLensTheme {
@@ -45,7 +46,7 @@ class ResultsScreenTest {
                     capturedImagePath = null,
                     savedPillVisible = false,
                     onBack = {},
-                    onRetake = {},
+                    onRetake = onRetake,
                     onRefresh = {},
                     onSave = onSave,
                     onSetPortion = onSetPortion,
@@ -119,13 +120,39 @@ class ResultsScreenTest {
     }
 
     @Test
-    fun `tapping the sellers pill opens prices for the scan`() {
+    fun `tapping the prices CTA opens prices for the scan`() {
         var openedId: String? = null
         render(ResultsUiState.Ready(sampleElectronics("e1"), saved = false), onOpenPrices = { openedId = it })
 
-        compose.onNodeWithText("sellers", substring = true).performScrollTo().performClick()
+        compose.onNodeWithText("See all prices", substring = true).performScrollTo().performClick()
 
         assertEquals("e1", openedId)
+    }
+
+    @Test
+    fun `tapping Not this retakes the scan`() {
+        var retook = false
+        render(ResultsUiState.Ready(sampleElectronics("e1"), saved = false), onRetake = { retook = true })
+
+        compose.onNodeWithText("Not this?").performClick()
+
+        assertTrue(retook)
+    }
+
+    @Test
+    fun `More details reveals attributes beyond the first four`() {
+        val base = sampleElectronics("e1")
+        val scan = base.copy(
+            identification = base.identification.copy(
+                attributes = base.identification.attributes + ("Battery" to "18h"),
+            ),
+        )
+        render(ResultsUiState.Ready(scan, saved = false))
+
+        // The 5th attribute (Battery · 18h) is hidden until "More details" is expanded.
+        compose.onNodeWithText("18h").assertDoesNotExist()
+        compose.onNodeWithText("More details").performScrollTo().performClick()
+        compose.onNodeWithText("18h").assertExists()
     }
 
     @Test

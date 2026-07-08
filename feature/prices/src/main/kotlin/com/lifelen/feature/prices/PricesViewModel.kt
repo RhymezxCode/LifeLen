@@ -39,10 +39,24 @@ class PricesViewModel @Inject constructor(
         viewModelScope.launch {
             val resolved = scanId?.let { historyRepository.getScan(it) } ?: scanSession.currentResult()
             scan = resolved
-            if (resolved == null || resolved.price == null) {
-                _uiState.update { it.copy(notFound = true) }
-            } else {
-                _uiState.update { it.copy(title = resolved.title, price = resolved.price) }
+            when {
+                resolved == null -> _uiState.update { it.copy(notFound = true) }
+                resolved.price != null ->
+                    _uiState.update { it.copy(title = resolved.title, price = resolved.price) }
+                // No price yet — fetch one so opening this screen from "Find prices & sellers" isn't a
+                // dead-end. Show a loading state while the search + Qwen synthesis runs.
+                else -> {
+                    _uiState.update { it.copy(title = resolved.title, isRefreshing = true) }
+                    val fetched = when (
+                        val result = scanRepository.refreshPrice(resolved, settingsRepository.scanOptions())
+                    ) {
+                        is DataResult.Success -> result.data.also { scan = it }.price
+                        else -> null
+                    }
+                    _uiState.update {
+                        it.copy(price = fetched, isRefreshing = false, notFound = fetched == null)
+                    }
+                }
             }
         }
     }

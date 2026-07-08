@@ -8,13 +8,20 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,6 +51,7 @@ import com.lifelen.core.designsystem.LifeLensIcons
 import com.lifelen.core.designsystem.component.LifeLensButton
 import com.lifelen.core.designsystem.component.MediaIconButton
 import com.lifelen.core.designsystem.component.SheetGrabber
+import com.lifelen.core.designsystem.component.clickableEnabled
 import com.lifelen.core.designsystem.theme.Body
 import com.lifelen.core.designsystem.theme.BodyStyle
 import com.lifelen.core.designsystem.theme.Chamber
@@ -147,6 +155,11 @@ internal fun ResultsScreen(
     val sheetShift by animateDpAsState(if (appeared) 0.dp else 36.dp, tween(320), label = "sheetShift")
     val sheetFade by animateFloatAsState(if (appeared) 1f else 0f, tween(320), label = "sheetFade")
 
+    // Draggable sheet height — drag (or tap) the grabber up to expand and see more info.
+    var expanded by remember { mutableStateOf(false) }
+    val sheetFraction by animateFloatAsState(if (expanded) 0.92f else 0.60f, tween(300), label = "sheetFraction")
+    var dragAccum by remember { mutableStateOf(0f) }
+
     Box(
         Modifier
             .fillMaxSize()
@@ -214,19 +227,35 @@ internal fun ResultsScreen(
                 .offset(y = sheetShift)
                 .alpha(sheetFade)
                 .fillMaxWidth()
-                .fillMaxHeight(0.60f)
-                .navigationBarsPadding()
+                // Lift the sheet above whichever is taller — the nav bar or the soft keyboard — so
+                // the "Ask about this" field (and pinned actions) stay visible above the keypad.
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+                .fillMaxHeight(sheetFraction)
                 .clip(LifeLensShapes.sheet)
                 .background(Body)
                 .border(1.dp, SubtleBorder, LifeLensShapes.sheet)
                 .padding(horizontal = 20.dp)
                 .padding(top = 12.dp, bottom = 20.dp),
         ) {
-            SheetGrabber(
-                Modifier
+            // Grabber doubles as the drag/tap handle to expand or collapse the sheet.
+            Box(
+                modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .padding(bottom = 16.dp),
-            )
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = rememberDraggableState { delta -> dragAccum += delta },
+                        onDragStopped = {
+                            if (dragAccum < -40f) expanded = true else if (dragAccum > 40f) expanded = false
+                            dragAccum = 0f
+                        },
+                    )
+                    .clickableEnabled(true) { expanded = !expanded }
+                    .padding(horizontal = 48.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                SheetGrabber()
+            }
+            Spacer(Modifier.height(10.dp))
             when (uiState) {
                 ResultsUiState.Processing ->
                     Box(Modifier.weight(1f).fillMaxWidth()) { ResultSkeleton() }
@@ -254,6 +283,7 @@ internal fun ResultsScreen(
                     onOpenPrices = onOpenPrices,
                     askMessages = askMessages,
                     onAsk = onAsk,
+                    onNotThis = onRetake,
                     modifier = Modifier.weight(1f),
                 )
             }

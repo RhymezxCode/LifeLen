@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -89,7 +91,7 @@ import kotlin.math.roundToInt
 // ---------------------------------------------------------------------------
 
 @Composable
-internal fun IdentityHeader(scan: Scan, modifier: Modifier = Modifier) {
+internal fun IdentityHeader(scan: Scan, modifier: Modifier = Modifier, onNotThis: () -> Unit = {}) {
     val lowConfidence = scan.identification.confidence < 0.70f
     val title = if (lowConfidence) "Looks like ${scan.title}" else scan.title
     Column(modifier.fillMaxWidth()) {
@@ -106,7 +108,7 @@ internal fun IdentityHeader(scan: Scan, modifier: Modifier = Modifier) {
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                MetaChips(scan)
+                MetaChips(scan, onNotThis)
             }
         }
         if (lowConfidence) {
@@ -145,7 +147,7 @@ private fun IdentityThumb(scan: Scan) {
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun MetaChips(scan: Scan) {
+private fun MetaChips(scan: Scan, onNotThis: () -> Unit = {}) {
     val visual = scan.category.visual()
     androidx.compose.foundation.layout.FlowRow(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -156,13 +158,14 @@ private fun MetaChips(scan: Scan) {
             NeutralChip("Photo estimate")
         } else {
             ConfidenceBadge(confidence = scan.identification.confidence)
+            // Tapping "Not this?" retakes the shot so a wrong identification can be corrected.
             Text(
                 text = "Not this?",
                 style = CaptionStyle.copy(textDecoration = TextDecoration.Underline),
                 color = TextSecondary,
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
-                    .clickableEnabled(true) { /* no-op */ },
+                    .clickableEnabled(true, onNotThis),
             )
         }
     }
@@ -200,6 +203,7 @@ internal fun ReadyBody(
     modifier: Modifier = Modifier,
     askMessages: List<AskMessage> = emptyList(),
     onAsk: (String) -> Unit = {},
+    onNotThis: () -> Unit = {},
 ) {
     var adjustOpen by remember(scan.id) { mutableStateOf(false) }
     val nutrition = scan.nutrition
@@ -209,7 +213,7 @@ internal fun ReadyBody(
                 .weight(1f)
                 .verticalScroll(rememberScrollState()),
         ) {
-            IdentityHeader(scan)
+            IdentityHeader(scan, onNotThis = onNotThis)
             when {
                 nutrition != null -> FoodContent(nutrition, portionFactor, onSetPortion, adjustOpen)
                 scan.category == ScanCategory.PLANT -> PlantContent(scan)
@@ -248,16 +252,93 @@ private fun ActionFooter(
 
 @Composable
 private fun ProductContent(scan: Scan, onOpenPrices: (String) -> Unit) {
+    val id = scan.identification
+    val attrs = id.attributes.entries.map { it.key to it.value }
     Column(Modifier.fillMaxWidth()) {
-        val stats = scan.identification.attributes.entries.take(4).map { it.key to it.value }
-        if (stats.isNotEmpty()) {
-            StatRow(stats = stats, modifier = Modifier.padding(top = 18.dp))
+        // Summary gives context beyond the title — the "more info" the header alone doesn't carry.
+        if (id.summary.isNotBlank()) {
+            Spacer(Modifier.height(14.dp))
+            Text(id.summary, style = BodyStyle, color = TextSecondary)
         }
-        scan.price?.let { price ->
-            Spacer(Modifier.height(16.dp))
-            PriceBlock(price = price, onSellers = { onOpenPrices(scan.id) })
+        // Quick specs (category-specific keys come straight from Qwen: Chip/Memory for electronics,
+        // Author/Year for books, Brand/Material for clothing …).
+        if (attrs.isNotEmpty()) {
+            StatRow(stats = attrs.take(4), modifier = Modifier.padding(top = 16.dp))
+        }
+        if (attrs.size > 4) {
+            Spacer(Modifier.height(12.dp))
+            MoreDetails(attrs)
+        }
+        // Path to the full prices/buy screen — prominent, and offered even before a price loads.
+        when {
+            scan.price != null -> {
+                Spacer(Modifier.height(16.dp))
+                PriceBlock(price = scan.price!!)
+                Spacer(Modifier.height(10.dp))
+                LifeLensButton(
+                    text = "See all prices & buy  →",
+                    onClick = { onOpenPrices(scan.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                    type = ButtonType.Secondary,
+                )
+            }
+
+            scan.category.isShoppable() -> {
+                Spacer(Modifier.height(16.dp))
+                LifeLensButton(
+                    text = "Find prices & sellers  →",
+                    onClick = { onOpenPrices(scan.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                    type = ButtonType.Secondary,
+                )
+            }
         }
     }
+}
+
+/** Expandable "More details" — reveals every attribute Qwen returned, as label/value rows. */
+@Composable
+private fun MoreDetails(attrs: List<Pair<String, String>>) {
+    var open by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(LifeLensShapes.chip)
+                .clickableEnabled(true) { open = !open }
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(if (open) "Hide details" else "More details", style = LabelStyle, color = TextSecondary)
+            Icon(
+                imageVector = if (open) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                contentDescription = if (open) "Hide details" else "Show all details",
+                tint = TextSecondary,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        if (open) {
+            Spacer(Modifier.height(6.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                attrs.forEach { (key, value) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text(key, style = CaptionStyle, color = TextSecondary, modifier = Modifier.weight(0.42f))
+                        Text(value, style = BodyStyle, color = TextPrimary, modifier = Modifier.weight(0.58f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Categories that route to [ProductContent] and warrant a price/buy lookup. */
+private fun ScanCategory.isShoppable(): Boolean = when (this) {
+    ScanCategory.ELECTRONICS, ScanCategory.BOOK, ScanCategory.CLOTHING, ScanCategory.GENERIC -> true
+    else -> false
 }
 
 @Composable
@@ -423,7 +504,6 @@ private fun AskSection(messages: List<AskMessage>, onAsk: (String) -> Unit) {
 @Composable
 internal fun PriceBlock(
     price: PriceInfo,
-    onSellers: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -454,22 +534,8 @@ internal fun PriceBlock(
                 )
             }
         }
-        Row(
-            modifier = Modifier
-                .clip(LifeLensShapes.chip)
-                .background(Color.White.copy(alpha = 0.08f))
-                .clickableEnabled(true, onSellers)
-                .padding(horizontal = 13.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text("${price.sellerCount} sellers", style = LabelStyle, color = TextPrimary)
-            Icon(
-                LifeLensIcons.ChevronRight,
-                contentDescription = "View sellers",
-                tint = TextPrimary,
-                modifier = Modifier.size(16.dp),
-            )
+        if (price.sellerCount > 0) {
+            Text("${price.sellerCount} sellers", style = CaptionStyle, color = TextFaint)
         }
     }
 }
