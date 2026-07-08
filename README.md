@@ -49,7 +49,12 @@ The complete catalog, with user workflows and technical requirements per feature
 | _placeholder_ | _placeholder_ | _placeholder_ | _placeholder_ |
 | Live camera + capture | Identification + price/nutrition | Saved scans + search | API keys + preferences |
 
-> Screenshots will be added during Day 5 (demo & submission polish).
+<img width="1080" height="2108" alt="Screenshot_20260708_203850_LifeLens" src="https://github.com/user-attachments/assets/dea9a826-7955-445b-be41-05abbddd44a6" />
+<img width="1080" height="2108" alt="Screenshot_20260708_203855_LifeLens" src="https://github.com/user-attachments/assets/46fe20b8-26c1-476c-8649-924ba149ecc3" />
+<img width="1080" height="2108" alt="Screenshot_20260708_203900_LifeLens" src="https://github.com/user-attachments/assets/829b4442-5121-4264-9ff6-fe5032daf66d" />
+<img width="1080" height="2108" alt="Screenshot_20260708_203908_LifeLens" src="https://github.com/user-attachments/assets/4124ec55-6169-4a96-92ee-8447fec1da16" />
+<img width="1080" height="2108" alt="Screenshot_20260708_203912_LifeLens" src="https://github.com/user-attachments/assets/d46b8ca7-b0e9-46e8-a815-25cd7c83c619" />
+<img width="1080" height="2108" alt="Screenshot_20260708_203919_LifeLens" src="https://github.com/user-attachments/assets/ac4627be-7d8a-4d48-854a-a2f1fc4209ff" />
 
 ---
 
