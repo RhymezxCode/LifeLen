@@ -12,6 +12,7 @@ android {
 dependencies {
     implementation(project(":core:common"))
 
+    implementation(libs.kotlinx.coroutines.core)
     implementation(libs.retrofit.core)
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(platform(libs.okhttp.bom))

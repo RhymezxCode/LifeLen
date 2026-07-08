@@ -80,12 +80,27 @@ object QwenPrompts {
     fun askUserPrompt(context: String, question: String): String =
         "Scanned item context:\n$context\n\nQuestion: $question"
 
-    fun priceUserPrompt(productTitle: String, resultsBlock: String): String = """
+    fun priceUserPrompt(
+        productTitle: String,
+        resultsBlock: String,
+        currencyInstruction: String = GENERIC_CURRENCY_INSTRUCTION,
+    ): String = """
         Product: $productTitle
 
         Shopping results:
         $resultsBlock
 
+        $currencyInstruction
         Produce the pricing JSON.
     """.trimIndent()
+
+    /** Localize prices to the user's currency, e.g. "NGN" for Nigeria. */
+    fun localCurrencyInstruction(currencyCode: String, countryName: String): String =
+        "Report every price in $currencyCode — the user's local currency in $countryName. Convert " +
+            "foreign-currency listings to $currencyCode and set the \"currency\" fields to \"$currencyCode\"."
+
+    /** Used when the user's location is unknown (location permission not granted). */
+    const val GENERIC_CURRENCY_INSTRUCTION =
+        "The user's location is unknown, so price generically in US Dollars: convert listings to USD " +
+            "and set the \"currency\" fields to \"USD\". Do not use a country-specific currency."
 }

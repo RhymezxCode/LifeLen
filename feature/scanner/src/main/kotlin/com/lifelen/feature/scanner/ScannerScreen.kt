@@ -9,7 +9,6 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
@@ -64,9 +63,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.label.ImageLabeling
-import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 import kotlinx.coroutines.delay
 import com.lifelen.core.designsystem.LifeLensIcons
 import com.lifelen.core.designsystem.component.ButtonType
@@ -99,9 +95,6 @@ import java.io.File
 
 /** Selectable capture modes shown in the [ModeStrip]. Visual-only for v1. */
 private val ScanModes = listOf("Auto", "Electronics", "Food", "Text")
-
-/** Top on-device label shown live over the viewfinder. */
-private data class LiveLabel(val text: String, val confidence: Float)
 
 @Composable
 fun ScannerRoute(
@@ -149,6 +142,13 @@ internal fun ScannerScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted -> hasPermission = granted }
+
+    // Coarse location is used only to localize pricing to the user's currency. Its result is read
+    // lazily by the pricing layer, so we don't track it here — denying it yields generic pricing.
+    var askedLocation by rememberSaveable { mutableStateOf(false) }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
 
     // Re-check on resume so granting from the system Settings screen updates the UI on return.
     DisposableEffect(lifecycleOwner) {
@@ -201,6 +201,17 @@ internal fun ScannerScreen(
         if (!hasPermission) requestCameraAccess()
     }
 
+    // Once camera access is settled, ask once for coarse location so pricing can be shown in the
+    // user's local currency. Skipped/denied → the pricing layer falls back to generic pricing.
+    LaunchedEffect(hasPermission) {
+        if (hasPermission && !askedLocation) {
+            askedLocation = true
+            val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+            if (!granted) locationPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.error) {
         uiState.error?.let { message ->
@@ -240,7 +251,6 @@ internal fun ScannerScreen(
 }
 
 /** S02 — the live viewfinder with camera chrome. */
-@androidx.annotation.OptIn(markerClass = [ExperimentalGetImage::class])
 @Composable
 private fun CameraHome(
     uiState: ScannerUiState,
@@ -255,27 +265,10 @@ private fun CameraHome(
     val lifecycleOwner = LocalLifecycleOwner.current
     val controller = remember {
         LifecycleCameraController(context).apply {
-            setEnabledUseCases(CameraController.IMAGE_CAPTURE or CameraController.IMAGE_ANALYSIS)
+            setEnabledUseCases(CameraController.IMAGE_CAPTURE)
         }
     }
-    // On-device ML Kit labelling of the live viewfinder (real-time) — no key or network needed.
-    val labeler = remember {
-        ImageLabeling.getClient(ImageLabelerOptions.Builder().setConfidenceThreshold(0.6f).build())
-    }
-    var liveLabel by remember { mutableStateOf<LiveLabel?>(null) }
     LaunchedEffect(controller, lifecycleOwner) {
-        controller.setImageAnalysisAnalyzer(ContextCompat.getMainExecutor(context)) { proxy ->
-            val media = proxy.image
-            if (media == null) {
-                proxy.close()
-            } else {
-                labeler.process(InputImage.fromMediaImage(media, proxy.imageInfo.rotationDegrees))
-                    .addOnSuccessListener { labels ->
-                        liveLabel = labels.firstOrNull()?.let { LiveLabel(it.text, it.confidence) }
-                    }
-                    .addOnCompleteListener { proxy.close() }
-            }
-        }
         controller.bindToLifecycle(lifecycleOwner)
     }
 
@@ -300,12 +293,17 @@ private fun CameraHome(
         )
     }
 
-    // Auto-scan: when a confident label holds steady briefly, capture without a shutter tap.
-    LaunchedEffect(uiState.autoScan, liveLabel?.text, uiState.isCapturing) {
-        val label = liveLabel
-        if (uiState.autoScan && !uiState.isCapturing && label != null && label.confidence >= 0.7f) {
-            delay(1100)
-            if (liveLabel?.text == label.text && !uiState.isCapturing) capture()
+    // Auto-scan: when enabled, capture a steady frame after a short delay — Qwen does the real
+    // identification, so no on-device detector is needed. Fires once per composition; retaking the
+    // shot re-composes the camera and re-arms it.
+    var autoFired by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.autoScan, uiState.isCapturing) {
+        if (uiState.autoScan && !uiState.isCapturing && !autoFired) {
+            delay(1400)
+            if (uiState.autoScan && !uiState.isCapturing) {
+                autoFired = true
+                capture()
+            }
         }
     }
 
@@ -315,13 +313,13 @@ private fun CameraHome(
             modifier = Modifier.fillMaxSize(),
         )
 
-        // Live label chip + signature framing brackets (locked amber once ML Kit recognises something).
+        // Signature framing brackets. They lock amber while auto-scan is arming the next capture.
         if (!uiState.isCapturing) {
             Column(
                 modifier = Modifier.align(BiasAlignment(0f, -0.08f)),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                liveLabel?.let { label ->
+                if (uiState.autoScan) {
                     Row(
                         modifier = Modifier
                             .clip(LifeLensShapes.chip)
@@ -329,16 +327,12 @@ private fun CameraHome(
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = "${label.text} · ${(label.confidence * 100).toInt()}%",
-                            style = LabelStyle,
-                            color = Amber,
-                        )
+                        Text(text = "Auto-identifying…", style = LabelStyle, color = Amber)
                     }
                     Spacer(Modifier.height(10.dp))
                 }
                 DetectionBrackets(
-                    state = if (liveLabel != null) DetectionState.Locked else DetectionState.Searching,
+                    state = if (uiState.autoScan) DetectionState.Locked else DetectionState.Searching,
                     modifier = Modifier.size(width = 256.dp, height = 176.dp),
                 )
             }
@@ -368,7 +362,7 @@ private fun CameraHome(
         // Idle hint, centered in the lower third.
         if (!uiState.isCapturing) {
             Text(
-                text = "Tap the shutter to identify",
+                text = if (uiState.autoScan) "Hold steady — LifeLens is identifying" else "Tap the shutter to identify",
                 style = BodyStyle,
                 color = TextSecondary,
                 textAlign = TextAlign.Center,

@@ -17,12 +17,13 @@ scenarios."* LifeLens is exactly that agent, running on a phone:
 
 | EdgeAgent trait | How LifeLens does it |
 |---|---|
-| **Perceive (edge sensors)** | CameraX viewfinder + **on-device ML Kit** labelling of every frame in real time — no round-trip needed to see what it's looking at. |
-| **Reason (cloud)** | The captured frame is sent to **Qwen-VL** (Alibaba Cloud Model Studio / Qwen Cloud) which returns a structured `Identification`; a second Qwen call synthesises live pricing from grounded web results. |
+| **Perceive (edge sensors)** | CameraX viewfinder captures the scene; the agent frames the subject with live detection brackets and downscales the frame on-device before reasoning. |
+| **Reason (cloud)** | The captured frame is sent to **Qwen-VL** (Alibaba Cloud Model Studio / Qwen Cloud) which returns a structured `Identification` — **Qwen is the single brain**, no second-rate on-device model in the loop. A second Qwen call synthesises live pricing from grounded web results. |
 | **Act (locally)** | The agent routes the result through a `CategoryHandler` policy (food → nutrition, product → spec sheet + price, plant → care card, document → transcription), persists it to a local Room store, and can answer follow-up questions. |
-| **Autonomy** | **Auto-scan** mode: when a confident label holds steady, the agent captures and identifies on its own — no shutter tap. |
-| **Edge-cloud orchestration + graceful degradation** | If there is **no Qwen key or no network**, the agent degrades gracefully to an **on-device ML Kit identification** and an **offline last-result fallback** instead of failing. Pricing degrades from Serper → a keyless Google fallback → none. |
-| **Privacy-aware** | Live labelling and the offline fallback run **fully on-device**; images are stored as local file paths, never uploaded except the single downscaled frame sent to Qwen for a scan. |
+| **Autonomy** | **Auto-scan** mode: the agent holds a steady frame briefly, then captures and identifies on its own via Qwen — no shutter tap. |
+| **Edge-cloud orchestration + graceful degradation** | Search grounding fans out to **several free engines concurrently (Google → DuckDuckGo → Bing)** plus optional Serper, so pricing survives any one engine failing; when the network drops entirely the agent shows an **offline last-result fallback** instead of erroring. |
+| **Privacy-aware** | Location is **opt-in coarse** and used only to localize currency; images are stored as local file paths, never uploaded except the single downscaled frame sent to Qwen for a scan. |
+| **Location-aware** | With coarse location granted, pricing is localized to the user's **country currency**; denied/unknown → generic **USD**, never a country currency the user didn't opt into. |
 | **Ask (multi-turn reasoning)** | "Ask about this" seeds a Qwen chat with the identification context so the user can interrogate the scanned object conversationally. |
 
 The agent's control loop — *perceive → reason → route → act → (optionally) converse* — is the core
@@ -57,7 +58,7 @@ synthesis are Qwen calls.
 flowchart TD
     subgraph Edge["📱 Edge (on-device, Android)"]
         cam["Camera sensor (CameraX)"]
-        mlkit["ML Kit image labelling<br/>(live label + no-key fallback)"]
+        loc["Coarse location → country/currency"]
         room["Room store + offline last-result"]
         ui["Compose UI · CategoryHandler routing"]
     end
@@ -65,17 +66,17 @@ flowchart TD
         qwenvl["Qwen-VL — identify"]
         qwentext["Qwen — price synthesis / ask"]
     end
-    search["Search grounding<br/>(Serper → Google fallback)"]
+    search["Search grounding<br/>(Google + DuckDuckGo + Bing + optional Serper)"]
 
-    cam --> mlkit
-    mlkit -->|"stable label → auto-capture"| ui
+    cam -->|"steady frame → auto-capture"| ui
     ui -->|"downscaled frame"| qwenvl
     qwenvl -->|"structured Identification"| ui
+    loc -->|"local currency"| search
     ui -->|"product query"| search
     search --> qwentext
     qwentext -->|"PriceInfo"| ui
     ui --> room
-    ui -.->|"no key / offline"| mlkit
+    ui -.->|"offline"| room
 ```
 
 Full module/architecture detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`TECHNICAL.md`](TECHNICAL.md).
@@ -85,8 +86,9 @@ Full module/architecture detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 
 ## 4. How it maps to the judging criteria
 
 - **Innovation & AI Creativity (30%)** — one Qwen-VL model does both vision *and* grounded price
-  synthesis; an extensible `CategoryHandler` policy routes per object type; edge-cloud orchestration
-  with **on-device ML Kit** as a real fallback, plus autonomous auto-scan and a follow-up ask loop.
+  synthesis; an extensible `CategoryHandler` policy routes per object type; a concurrent multi-engine
+  search grounds prices, localized to the user's currency; plus autonomous auto-scan and a follow-up
+  ask loop.
 - **Technical Depth & Engineering (30%)** — 15-module Now-in-Android architecture, Hilt DI,
   convention plugins, `StateFlow` UDF, defensive JSON parsing, **139+ unit/Compose tests** runnable
   on the JVM (Robolectric), CI.
@@ -100,19 +102,21 @@ Full module/architecture detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 
 ## 5. New / significantly updated
 
 LifeLens was **built new during the Submission Period** — the multi-module app, the Qwen-VL
-integration, the EdgeAgent edge-cloud loop (ML Kit fallback, offline handling, auto-scan) were all
-created within the window. Commit history in the repo documents the build.
+integration, the EdgeAgent edge-cloud loop (multi-engine search grounding, location-aware currency,
+offline handling, auto-scan) were all created within the window. Commit history in the repo
+documents the build.
 
 ---
 
 ## 6. Testing instructions
 
-- Add a Qwen key: create `secrets.properties` at the repo root with
-  `DASHSCOPE_API_KEY=sk-...` (and optionally `SEARCH_API_KEY=...`), **or** paste keys in the in-app
-  **Settings** screen. See [`docs/API-KEYS.md`](docs/API-KEYS.md).
+- **Runs out of the box:** a default `DASHSCOPE_API_KEY` ships in `secrets.properties`, and price
+  search uses free Google/DuckDuckGo/Bing — no key entry required to demo. To use your own Qwen key,
+  set `DASHSCOPE_API_KEY=sk-...` (optionally `SEARCH_API_KEY=...` for Serper) or paste it in the
+  in-app **Settings** screen. See [`docs/API-KEYS.md`](docs/API-KEYS.md).
 - Build/run: `./gradlew assembleDebug` then install, or open in Android Studio and run `app`.
-- **No key needed to see the edge agent degrade gracefully:** with no key set, scanning falls back to
-  on-device ML Kit identification, and the live viewfinder label works regardless.
+- **Grant or deny location** to see pricing switch between your local currency and generic USD; turn
+  off Wi-Fi/data to see the **offline last-result fallback**.
 - Run the test suite (JVM, no device): `./gradlew testDebugUnitTest :core:model:test`.
 
 ---

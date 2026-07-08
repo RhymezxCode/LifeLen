@@ -23,7 +23,8 @@ Companion docs: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** (structure) · 
 | Image loading | Coil **3** |
 | Networking | Retrofit + OkHttp + kotlinx.serialization |
 | AI / Vision | Qwen-VL via DashScope OpenAI-compatible API |
-| Search grounding | Pluggable `SearchClient` (Serper / Tavily / SerpAPI / Bing) |
+| Search grounding | `AggregatingSearchClient` — free **Google + DuckDuckGo + Bing** scrapes, plus optional keyed **Serper** |
+| Localization | `RegionProvider` (coarse location → country/currency) for local-currency pricing |
 | Local persistence | Room (scan history) + DataStore (settings & API keys) |
 | Connectivity | `NetworkMonitor` (`ConnectivityManager`) for the offline fallback |
 | Build | Gradle Kotlin DSL, version catalog, `build-logic` convention plugins, composite build |
@@ -137,9 +138,19 @@ Model memory goes stale; live prices don't. After identification, product catego
    )
    ```
 
-   The default implementation is `SerperSearchClient`; Tavily/SerpAPI/Bing are drop-in via a different Hilt binding.
-3. **Feed back to Qwen.** Listings are passed into the price-synthesis call above, producing a `PriceInfo` with a range and cheapest-first `BuyOption`s.
-4. **Disclaimers.** Prices are presented as **ranges** with an "estimate — verify at source" note and live links, since listings vary by region, stock, and time. Grounding + disclaimers together mitigate hallucinated prices.
+   The bound implementation is **`AggregatingSearchClient`**, which fans out to several providers **concurrently** and merges their listings for thorough, resilient grounding:
+
+   | Provider | Key | Notes |
+   |---|---|---|
+   | **Google** (web scrape) | none | Queried **first** — wins host de-duplication ties. |
+   | **DuckDuckGo** (HTML endpoint) | none | Free; independent index. |
+   | **Bing** (web scrape) | none | Free; extra retailer coverage. |
+   | **Serper.dev** (Google Shopping) | `SEARCH_API_KEY` | Optional booster added only when a key is set. |
+
+   Each provider is best-effort (a failing/rate-limited engine contributes nothing); results are deduped to one listing per retailer host (Google first) and capped before synthesis.
+3. **Localize.** A `RegionProvider` resolves the user's country + currency from **coarse location** when granted. The query is biased to that country and Qwen is told to report prices in the local currency; **without location permission the price is generic (USD)**, never a country currency.
+4. **Feed back to Qwen.** Listings are passed into the price-synthesis call above, producing a `PriceInfo` with a range and cheapest-first `BuyOption`s.
+5. **Disclaimers.** Prices are presented as **ranges** with an "estimate — verify at source" note and live links, since listings vary by region, stock, and time. Grounding + disclaimers together mitigate hallucinated prices.
 
 ---
 

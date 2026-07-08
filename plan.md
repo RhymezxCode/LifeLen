@@ -104,7 +104,7 @@ Full feature detail (with user workflows + technical requirements) is in **[feat
 | `:core:datastore` | Settings + secure API key storage. |
 | `:core:database` | Room entities, DAOs, DB; image-path storage; migrations note. |
 | `:core:network` | Retrofit/OkHttp; `QwenVisionClient` (DashScope); DTOs; image encoding; prompts. |
-| `:core:search` | `SearchClient` interface + Serper default impl. |
+| `:core:search` | `SearchClient` + `AggregatingSearchClient` (Google + DuckDuckGo + Bing + optional Serper). |
 | `:core:data` | `ScanRepository`, `HistoryRepository`, `CategoryHandler` registry + handlers. |
 | `:feature:scanner` | Preview, permission, capture, image pipeline, analyze trigger. |
 | `:feature:results` | Result detail UI variants; share; ask-followup (stretch). |

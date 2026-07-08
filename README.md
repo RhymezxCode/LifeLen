@@ -66,7 +66,8 @@ The complete catalog, with user workflows and technical requirements per feature
 | Image loading | Coil 3 |
 | Networking | Retrofit + OkHttp + kotlinx.serialization |
 | AI / Vision | Qwen-VL via DashScope OpenAI-compatible API |
-| Search grounding | Pluggable `SearchClient` (Serper / Tavily / SerpAPI / Bing) |
+| Search grounding | `AggregatingSearchClient` — free **Google + DuckDuckGo + Bing** scrapes, plus optional keyed **Serper** |
+| Localization | Coarse location → local-currency pricing; generic (USD) when denied |
 | Local persistence | Room (scan history) + [SimpleStore](https://github.com/RhymezxCode/SimpleStore) over DataStore (settings & API keys) |
 | Home-screen widgets | Jetpack Glance (5 widgets) |
 | Theme & type | System-aware light/dark; Space Grotesk (display) + JetBrains Mono (data readouts) |
@@ -264,7 +265,7 @@ The 5-day hackathon delivery plan, MVP-vs-stretch scope, milestones, and risks a
 
 ## Hackathon — Track 5: EdgeAgent
 
-LifeLens is built for the **Global AI Hackathon Series with Qwen Cloud** as an **EdgeAgent (Track 5)** — a Qwen-powered device that **perceives** via the camera (with on-device ML Kit labelling), **reasons** via **Qwen-VL on Qwen Cloud** (Alibaba Cloud Model Studio), and **acts locally**: routing per object type, persisting to a local store, running autonomously (auto-scan), and answering follow-up questions — with graceful degradation when offline or when no key is set. Qwen-VL is the centerpiece: one multimodal model powers both the vision understanding and the natural-language synthesis of grounded search results.
+LifeLens is built for the **Global AI Hackathon Series with Qwen Cloud** as an **EdgeAgent (Track 5)** — a Qwen-powered device that **perceives** via the camera, **reasons** via **Qwen-VL on Qwen Cloud** (Alibaba Cloud Model Studio), and **acts locally**: routing per object type, persisting to a local store, running autonomously (auto-scan), and answering follow-up questions — with graceful degradation when offline. Qwen-VL is the centerpiece and the **single brain**: identification is Qwen-only (a default key ships so it runs out of the box), and one multimodal model powers both the vision understanding and the natural-language synthesis of grounded search results — grounded across free Google/DuckDuckGo/Bing search and priced in the user's local currency when location is shared.
 
 See **[SUBMISSION.md](SUBMISSION.md)** for the track write-up, EdgeAgent architecture diagram, Alibaba Cloud proof, and judging-criteria mapping.
 

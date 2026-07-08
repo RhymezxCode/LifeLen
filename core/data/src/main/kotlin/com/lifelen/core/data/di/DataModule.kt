@@ -1,8 +1,10 @@
 package com.lifelen.core.data.di
 
+import com.lifelen.core.common.location.RegionProvider
 import com.lifelen.core.common.network.ApiKeyProvider
 import com.lifelen.core.data.connectivity.AndroidNetworkMonitor
 import com.lifelen.core.data.connectivity.NetworkMonitor
+import com.lifelen.core.data.location.AndroidRegionProvider
 import com.lifelen.core.data.handler.BookHandler
 import com.lifelen.core.data.handler.CategoryHandler
 import com.lifelen.core.data.handler.ClothingHandler
@@ -48,6 +50,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindNetworkMonitor(impl: AndroidNetworkMonitor): NetworkMonitor
+
+    @Binds
+    @Singleton
+    abstract fun bindRegionProvider(impl: AndroidRegionProvider): RegionProvider
 
     // --- Object-type handler registry (add a @Binds @IntoSet line for each new type) ---
 

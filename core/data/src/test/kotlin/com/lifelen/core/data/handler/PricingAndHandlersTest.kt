@@ -1,5 +1,6 @@
 package com.lifelen.core.data.handler
 
+import com.lifelen.core.common.location.Region
 import com.lifelen.core.data.model.ScanOptions
 import com.lifelen.core.data.qwen.AnalysisParser
 import com.lifelen.core.model.Identification
@@ -24,8 +25,12 @@ private class FakeSearchClient(private val results: List<SearchResult>) : Search
 }
 
 private class FakeQwenClient(private val chatResponse: String = "") : QwenClient {
+    var lastUserPrompt: String? = null
     override suspend fun analyzeImage(imageDataUrl: String, systemPrompt: String, userPrompt: String) = ""
-    override suspend fun chat(systemPrompt: String, userPrompt: String) = chatResponse
+    override suspend fun chat(systemPrompt: String, userPrompt: String): String {
+        lastUserPrompt = userPrompt
+        return chatResponse
+    }
 }
 
 class PricingAndHandlersTest {
@@ -58,6 +63,31 @@ class PricingAndHandlersTest {
         assertEquals(849.0, price.lowPrice, 0.001)
         assertEquals("Amazon", price.cheapestNew?.retailer)
         assertEquals("macbook air price", search.lastQuery)
+    }
+
+    @Test
+    fun `known region localizes the search query and requests the local currency`() = runTest {
+        val search = FakeSearchClient(results)
+        val qwen = FakeQwenClient(priceJson)
+        val synth = PricingSynthesizer(search, qwen, parser)
+        val region = Region(countryCode = "NG", currencyCode = "NGN", countryName = "Nigeria")
+
+        synth.priceFor(laptop, ScanOptions(pricingEnabled = true, region = region))
+
+        assertEquals("macbook air price Nigeria", search.lastQuery)
+        assertTrue(qwen.lastUserPrompt!!.contains("NGN"))
+    }
+
+    @Test
+    fun `unknown region prices generically in USD`() = runTest {
+        val search = FakeSearchClient(results)
+        val qwen = FakeQwenClient(priceJson)
+        val synth = PricingSynthesizer(search, qwen, parser)
+
+        synth.priceFor(laptop, ScanOptions(pricingEnabled = true, region = null))
+
+        assertEquals("macbook air price", search.lastQuery)
+        assertTrue(qwen.lastUserPrompt!!.contains("USD"))
     }
 
     @Test

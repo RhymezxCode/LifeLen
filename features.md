@@ -63,7 +63,8 @@ After identifying a product, LifeLens runs a live web/shopping search and has Qw
 4. Tap a buy link to open the listing.
 
 **Technical requirements**
-- `:core:search` — pluggable `SearchClient` (Serper default; Tavily/SerpAPI/Bing alternatives).
+- `:core:search` — `AggregatingSearchClient` fans out to free **Google + DuckDuckGo + Bing** scrapes (Google first) plus optional keyed **Serper**, merged and deduped.
+- `:core:data` — `RegionProvider` localizes the query + currency to the user's country (coarse location); generic USD when denied.
 - `:core:network` — second Qwen call synthesizes `PriceInfo` from listings.
 - `:core:data` — `ElectronicsHandler` builds the query from the `Identification` and orchestrates search → synthesis.
 - `:core:model` — `PriceInfo`, `BuyOption`.
@@ -194,7 +195,7 @@ Fast path for barcodes and QR codes for exact product lookups.
 1. Point at a barcode/QR.
 2. LifeLens recognizes it instantly and jumps to the product/link.
 
-**Technical requirements** — CameraX `ImageAnalysis` + ML Kit barcode (or on-device) in `:feature:scanner`; routes into `ScanRepository`.
+**Technical requirements** — CameraX capture in `:feature:scanner`; Qwen-VL reads the code/label from the frame (staying Qwen-only), routing into `ScanRepository`.
 
 #### Live translation of signs & menus (OCR + translate)
 Extract text and translate it inline.

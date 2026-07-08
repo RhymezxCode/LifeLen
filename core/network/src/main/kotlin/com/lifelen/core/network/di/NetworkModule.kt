@@ -4,8 +4,6 @@ import com.lifelen.core.network.QwenApi
 import com.lifelen.core.network.QwenAuthInterceptor
 import com.lifelen.core.network.QwenClient
 import com.lifelen.core.network.QwenClientImpl
-import com.lifelen.core.network.vision.LocalVisionLabeler
-import com.lifelen.core.network.vision.MlKitVisionLabeler
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -27,10 +25,6 @@ abstract class NetworkModule {
     @Binds
     @Singleton
     abstract fun bindQwenClient(impl: QwenClientImpl): QwenClient
-
-    @Binds
-    @Singleton
-    abstract fun bindLocalVisionLabeler(impl: MlKitVisionLabeler): LocalVisionLabeler
 
     companion object {
 

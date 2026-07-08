@@ -1,5 +1,6 @@
 package com.lifelen.core.data.repository
 
+import com.lifelen.core.common.location.RegionProvider
 import com.lifelen.core.data.model.ScanOptions
 import com.lifelen.core.datastore.UserPreferencesDataSource
 import com.lifelen.core.model.ThemeMode
@@ -41,6 +42,7 @@ interface SettingsRepository {
 
 class DefaultSettingsRepository @Inject constructor(
     private val dataSource: UserPreferencesDataSource,
+    private val regionProvider: RegionProvider,
 ) : SettingsRepository {
 
     override val settings: Flow<AppSettings> = dataSource.preferences.map {
@@ -57,7 +59,11 @@ class DefaultSettingsRepository @Inject constructor(
     }
 
     override suspend fun scanOptions(): ScanOptions =
-        ScanOptions(pricingEnabled = dataSource.preferences.first().pricingEnabled)
+        ScanOptions(
+            pricingEnabled = dataSource.preferences.first().pricingEnabled,
+            // Null when location permission isn't granted → generic (non-localized) pricing.
+            region = regionProvider.currentRegion(),
+        )
 
     override suspend fun setDashScopeApiKey(value: String) = dataSource.setDashScopeApiKey(value)
 

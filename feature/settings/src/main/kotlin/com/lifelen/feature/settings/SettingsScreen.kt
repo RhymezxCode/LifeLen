@@ -6,13 +6,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
@@ -123,8 +127,10 @@ internal fun SettingsScreen(
 
         Column(
             Modifier
+                // Shrink the scroll viewport by whichever is taller — the nav bar or the soft
+                // keyboard — so every field (and the Save button) can scroll clear of the keyboard.
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
                 .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
@@ -146,7 +152,8 @@ internal fun SettingsScreen(
             // --- API keys ---
             SectionTitle("API keys")
             Text(
-                "Stored on this device only. See docs/API-KEYS.md to obtain them.",
+                "Qwen powers every identification — a default key ships with the app; paste your own " +
+                    "to override. Stored on this device only. See docs/API-KEYS.md.",
                 style = CaptionStyle,
                 color = TextSecondary,
             )
@@ -170,7 +177,7 @@ internal fun SettingsScreen(
             )
             PreferenceSwitchRow(
                 title = "Live pricing",
-                subtitle = "Search the web for current prices and buy links.",
+                subtitle = "Search Google, DuckDuckGo & Bing for current prices and buy links.",
                 checked = settings.pricingEnabled,
                 onCheckedChange = onPricingChange,
             )
@@ -219,8 +226,8 @@ private fun ApiKeyEditor(settings: AppSettings, onSaveKeys: (String, String) -> 
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        KeyField("DashScope (Qwen) key", dashKey, reveal, onToggleReveal = { reveal = !reveal }) { dashKey = it }
-        KeyField("Search (Serper) key", searchKey, reveal, onToggleReveal = { reveal = !reveal }) { searchKey = it }
+        KeyField("Qwen (DashScope) key — required", dashKey, reveal, onToggleReveal = { reveal = !reveal }) { dashKey = it }
+        KeyField("Serper key — optional, boosts pricing", searchKey, reveal, onToggleReveal = { reveal = !reveal }) { searchKey = it }
         LifeLensButton(
             text = "Save keys",
             onClick = { onSaveKeys(dashKey, searchKey); seeded = true },
