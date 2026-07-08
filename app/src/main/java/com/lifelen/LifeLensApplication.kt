@@ -19,9 +19,11 @@ class LifeLensApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // On first launch, seed keys from the build-time secrets so the app works out of the box.
+        // The build-time default keys are supplied to the network layer via DefaultApiKeys (a
+        // fallback) — never persisted. This migration clears any default that older builds had
+        // seeded into storage, so it no longer shows up in Settings.
         appScope.launch {
-            settingsRepository.seedDefaultsIfEmpty(
+            settingsRepository.reconcileDefaultKeys(
                 dashScopeKey = BuildConfig.DASHSCOPE_API_KEY,
                 searchKey = BuildConfig.SEARCH_API_KEY,
             )

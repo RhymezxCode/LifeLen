@@ -7,6 +7,11 @@ import com.lifelen.core.model.PriceCondition
 import com.lifelen.core.model.PriceInfo
 import com.lifelen.core.model.ScanCategory
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import javax.inject.Inject
 
 /** Identification + any nutrition Qwen returned inline. */
@@ -26,7 +31,11 @@ class AnalysisParser @Inject constructor(
             category = ScanCategory.fromWireName(dto.category),
             summary = dto.summary,
             confidence = dto.confidence,
-            attributes = dto.attributes,
+            // Coerce whatever Qwen put in each attribute (string, number, array, object) to a
+            // display string, dropping blanks — arrays become "a, b", etc.
+            attributes = dto.attributes
+                .mapValues { (_, value) -> value.asAttributeString() }
+                .filterValues { it.isNotBlank() },
             tags = dto.tags,
             searchQuery = dto.searchQuery,
         )
@@ -77,6 +86,14 @@ class AnalysisParser @Inject constructor(
         ingredients = ingredients,
         healthNotes = healthNotes,
     )
+}
+
+/** Flatten any JSON value Qwen returned for an attribute into a readable one-line string. */
+private fun JsonElement.asAttributeString(): String = when (this) {
+    is JsonArray -> joinToString(", ") { it.asAttributeString() }.trim()
+    is JsonObject -> entries.joinToString(", ") { "${it.key}: ${it.value.asAttributeString()}" }.trim()
+    is JsonPrimitive -> if (this is JsonNull) "" else content
+    else -> ""
 }
 
 private fun String.extractJsonObject(): String =

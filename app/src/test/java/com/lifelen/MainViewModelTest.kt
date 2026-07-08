@@ -45,7 +45,7 @@ private class FakeSettingsRepository(
     override suspend fun setAutoSaveScans(enabled: Boolean) = Unit
     override suspend fun setAutoScan(enabled: Boolean) = Unit
     override suspend fun setRememberKeys(remember: Boolean) = Unit
-    override suspend fun seedDefaultsIfEmpty(dashScopeKey: String, searchKey: String) = Unit
+    override suspend fun reconcileDefaultKeys(dashScopeKey: String, searchKey: String) = Unit
 }
 
 class MainViewModelTest {

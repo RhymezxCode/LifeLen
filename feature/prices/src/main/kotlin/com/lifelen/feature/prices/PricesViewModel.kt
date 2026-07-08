@@ -10,6 +10,7 @@ import com.lifelen.core.data.repository.SettingsRepository
 import com.lifelen.core.data.session.ScanSession
 import com.lifelen.core.model.PriceCondition
 import com.lifelen.core.model.Scan
+import com.lifelen.core.model.shoppingLinksFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,25 +40,30 @@ class PricesViewModel @Inject constructor(
         viewModelScope.launch {
             val resolved = scanId?.let { historyRepository.getScan(it) } ?: scanSession.currentResult()
             scan = resolved
-            when {
-                resolved == null -> _uiState.update { it.copy(notFound = true) }
-                resolved.price != null ->
-                    _uiState.update { it.copy(title = resolved.title, price = resolved.price) }
-                // No price yet — fetch one so opening this screen from "Find prices & sellers" isn't a
-                // dead-end. Show a loading state while the search + Qwen synthesis runs.
-                else -> {
-                    _uiState.update { it.copy(title = resolved.title, isRefreshing = true) }
-                    val fetched = when (
-                        val result = scanRepository.refreshPrice(resolved, settingsRepository.scanOptions())
-                    ) {
-                        is DataResult.Success -> result.data.also { scan = it }.price
-                        else -> null
-                    }
-                    _uiState.update {
-                        it.copy(price = fetched, isRefreshing = false, notFound = fetched == null)
-                    }
-                }
+            if (resolved == null) {
+                _uiState.update { it.copy(notFound = true) }
+                return@launch
             }
+            // Deterministic retailer/search links are ALWAYS available — the screen never dead-ends,
+            // even if live price scraping returns nothing.
+            val links = shoppingLinksFor(
+                resolved.identification.searchQuery?.takeIf { it.isNotBlank() } ?: resolved.title,
+            )
+            _uiState.update { it.copy(title = resolved.title, whereToBuy = links) }
+
+            if (resolved.price != null) {
+                _uiState.update { it.copy(price = resolved.price) }
+                return@launch
+            }
+            // No price yet — try to synthesise one, but the where-to-buy links stand in either way.
+            _uiState.update { it.copy(isRefreshing = true) }
+            val fetched = when (
+                val result = scanRepository.refreshPrice(resolved, settingsRepository.scanOptions())
+            ) {
+                is DataResult.Success -> result.data.also { scan = it }.price
+                else -> null
+            }
+            _uiState.update { it.copy(price = fetched, isRefreshing = false) }
         }
     }
 

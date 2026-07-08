@@ -18,9 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,7 +47,6 @@ import com.lifelen.core.designsystem.LifeLensIcons
 import com.lifelen.core.designsystem.component.ButtonType
 import com.lifelen.core.designsystem.component.EmptyState
 import com.lifelen.core.designsystem.component.LifeLensButton
-import com.lifelen.core.designsystem.component.LoadingDots
 import com.lifelen.core.designsystem.component.ModeChip
 import com.lifelen.core.designsystem.component.RaisedCircleButton
 import com.lifelen.core.designsystem.component.SourceFootnote
@@ -71,7 +73,11 @@ import com.lifelen.core.designsystem.theme.NavTitle
 import com.lifelen.core.model.BuyOption
 import com.lifelen.core.model.PriceCondition
 import com.lifelen.core.model.PriceInfo
+import com.lifelen.core.model.ShoppingLink
 import java.util.Locale
+
+/** A resolved external destination (a retailer/engine name + its URL) pending an "open" confirm. */
+private data class OpenTarget(val name: String, val url: String)
 
 @Composable
 fun PricesRoute(
@@ -96,13 +102,10 @@ internal fun PricesScreen(
 ) {
     val uriHandler = LocalUriHandler.current
     var hasConfirmedExternal by rememberSaveable { mutableStateOf(false) }
-    var pendingOption by remember { mutableStateOf<BuyOption?>(null) }
+    var pending by remember { mutableStateOf<OpenTarget?>(null) }
 
-    val openOption: (BuyOption) -> Unit = { option ->
-        runCatching { uriHandler.openUri(option.url) }
-    }
-    val onRowTap: (BuyOption) -> Unit = { option ->
-        if (hasConfirmedExternal) openOption(option) else pendingOption = option
+    val onOpenTarget: (OpenTarget) -> Unit = { target ->
+        if (hasConfirmedExternal) runCatching { uriHandler.openUri(target.url) } else pending = target
     }
 
     Column(
@@ -115,47 +118,44 @@ internal fun PricesScreen(
         NavBar(title = uiState.title, onBack = onBack, onRefresh = onRefresh)
 
         val price = uiState.price
-        if (uiState.isRefreshing && price == null) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                LoadingDots(color = TextSecondary)
-                Text(
-                    "Finding the best prices…",
-                    style = CaptionStyle,
-                    color = TextSecondary,
-                    modifier = Modifier.padding(top = 12.dp),
-                )
-            }
-        } else if (uiState.notFound || price == null) {
-            EmptyState(
-                headline = "No pricing",
-                body = "We couldn't find sellers for this item right now.",
+        when {
+            // No scan resolved at all.
+            uiState.notFound -> EmptyState(
+                headline = "Nothing to price",
+                body = "We couldn't find this scan.",
                 modifier = Modifier.fillMaxWidth(),
                 ctaText = "Go back",
                 onCta = onBack,
             )
-        } else {
-            PriceSummaryStrip(
-                price = price,
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 8.dp),
-            )
 
-            ConditionChips(
-                selected = uiState.selectedCondition,
-                onSelectCondition = onSelectCondition,
-            )
+            // A synthesised price → the full breakdown, with where-to-buy links underneath.
+            price != null -> {
+                PriceSummaryStrip(
+                    price = price,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 8.dp),
+                )
+                ConditionChips(
+                    selected = uiState.selectedCondition,
+                    onSelectCondition = onSelectCondition,
+                )
+                PriceList(
+                    price = price,
+                    selected = uiState.selectedCondition,
+                    whereToBuy = uiState.whereToBuy,
+                    onOpen = onOpenTarget,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                )
+            }
 
-            PriceList(
-                price = price,
-                selected = uiState.selectedCondition,
-                onRowTap = onRowTap,
+            // No extracted price — the where-to-buy links are the guaranteed path to buy.
+            else -> WhereToBuyList(
+                links = uiState.whereToBuy,
+                searching = uiState.isRefreshing,
+                onOpen = onOpenTarget,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -163,9 +163,9 @@ internal fun PricesScreen(
         }
     }
 
-    val pending = pendingOption
-    if (pending != null) {
-        Dialog(onDismissRequest = { pendingOption = null }) {
+    val target = pending
+    if (target != null) {
+        Dialog(onDismissRequest = { pending = null }) {
             Column(
                 Modifier
                     .clip(LifeLensShapes.card)
@@ -174,7 +174,7 @@ internal fun PricesScreen(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("Open ${pending.retailer}?", style = TitleStyle, color = TextPrimary)
+                Text("Open ${target.name}?", style = TitleStyle, color = TextPrimary)
                 Text("This opens an external site.", style = BodyStyle, color = TextSecondary)
                 Row(
                     Modifier.fillMaxWidth().padding(top = 6.dp),
@@ -182,7 +182,7 @@ internal fun PricesScreen(
                 ) {
                     LifeLensButton(
                         "Cancel",
-                        { pendingOption = null },
+                        { pending = null },
                         Modifier.weight(1f),
                         type = ButtonType.Secondary,
                     )
@@ -190,14 +190,102 @@ internal fun PricesScreen(
                         "Open",
                         {
                             hasConfirmedExternal = true
-                            openOption(pending)
-                            pendingOption = null
+                            runCatching { uriHandler.openUri(target.url) }
+                            pending = null
                         },
                         Modifier.weight(1f),
                     )
                 }
             }
         }
+    }
+}
+
+/** Standalone "where to buy" list shown when no live price could be synthesised. */
+@Composable
+private fun WhereToBuyList(
+    links: List<ShoppingLink>,
+    searching: Boolean,
+    onOpen: (OpenTarget) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        item(key = "wtb-header") {
+            Column(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                Text(
+                    if (searching) "Finding live prices…" else "Open a store to see prices",
+                    style = TitleStyle,
+                    color = TextPrimary,
+                )
+                Text(
+                    "Live prices weren't available, so pick a search engine or retailer to check the " +
+                        "current price and buy.",
+                    style = CaptionStyle,
+                    color = TextSecondary,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+        whereToBuySection(links, onOpen)
+    }
+}
+
+/** Grouped retailer/search-engine rows appended to a price or where-to-buy list. */
+private fun LazyListScope.whereToBuySection(
+    links: List<ShoppingLink>,
+    onOpen: (OpenTarget) -> Unit,
+) {
+    if (links.isEmpty()) return
+    val engines = links.filter { it.kind == ShoppingLink.Kind.SEARCH_ENGINE }
+    val retailers = links.filter { it.kind == ShoppingLink.Kind.RETAILER }
+    if (engines.isNotEmpty()) {
+        item(key = "wtb-engines") { GroupHeader("Shopping search") }
+        items(engines, key = { "wtb-e-${it.name}" }) { ShopLinkRow(it, onOpen) }
+    }
+    if (retailers.isNotEmpty()) {
+        item(key = "wtb-retailers") { GroupHeader("Where to buy") }
+        items(retailers, key = { "wtb-r-${it.name}" }) { ShopLinkRow(it, onOpen) }
+    }
+}
+
+@Composable
+private fun ShopLinkRow(link: ShoppingLink, onOpen: (OpenTarget) -> Unit) {
+    Column(Modifier.clickableEnabled(true) { onOpen(OpenTarget(link.name, link.url)) }) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp)
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(Raised2),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(link.name.initials(), style = LabelStyle, color = TextPrimary)
+            }
+            Text(
+                link.name,
+                style = BodyStyle.copy(fontWeight = FontWeight.Medium),
+                color = TextPrimary,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                LifeLensIcons.ChevronRight,
+                contentDescription = "Open ${link.name}",
+                tint = TextSecondary,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        HorizontalDivider(color = Hairline, thickness = 1.dp)
     }
 }
 
@@ -337,7 +425,8 @@ private fun ConditionChips(
 private fun PriceList(
     price: PriceInfo,
     selected: PriceCondition,
-    onRowTap: (BuyOption) -> Unit,
+    whereToBuy: List<ShoppingLink>,
+    onOpen: (OpenTarget) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val primaryOptions = price.options(selected)
@@ -353,7 +442,7 @@ private fun PriceList(
         if (primaryOptions.isEmpty()) {
             item(key = "empty") {
                 Text(
-                    "No ${selected.displayName()} listings found — check other conditions.",
+                    "No ${selected.displayName()} listings found — check other conditions or a store below.",
                     style = CaptionStyle,
                     color = TextSecondary,
                     textAlign = TextAlign.Center,
@@ -370,7 +459,7 @@ private fun PriceList(
                 PriceRow(
                     option = option,
                     isBest = cheapestNew != null && option == cheapestNew,
-                    onTap = { onRowTap(option) },
+                    onTap = { onOpen(OpenTarget(option.retailer, option.url)) },
                     showDivider = !(renewedOptions.isEmpty() && index == primaryOptions.lastIndex),
                 )
             }
@@ -385,7 +474,7 @@ private fun PriceList(
                 PriceRow(
                     option = option,
                     isBest = false,
-                    onTap = { onRowTap(option) },
+                    onTap = { onOpen(OpenTarget(option.retailer, option.url)) },
                     showDivider = index < renewedOptions.lastIndex,
                 )
             }
@@ -397,6 +486,9 @@ private fun PriceList(
                 modifier = Modifier.padding(top = 16.dp),
             )
         }
+
+        // Always offer stores/engines to open, even alongside synthesised prices.
+        whereToBuySection(whereToBuy, onOpen)
     }
 }
 

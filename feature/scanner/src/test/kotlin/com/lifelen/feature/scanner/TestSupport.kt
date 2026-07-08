@@ -107,7 +107,7 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
         settingsFlow.update { it.copy(rememberKeys = remember) }
     }
 
-    override suspend fun seedDefaultsIfEmpty(dashScopeKey: String, searchKey: String) = Unit
+    override suspend fun reconcileDefaultKeys(dashScopeKey: String, searchKey: String) = Unit
 }
 
 /** A priced electronics [Scan] with four spec attributes (values include "M2"). */

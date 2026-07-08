@@ -31,6 +31,22 @@ class AnalysisParserTest {
     }
 
     @Test
+    fun `coerces non-string attribute values (arrays, numbers) instead of failing`() {
+        // Reproduces the crash from a rice scan: Qwen returned an array for "Ingredients" and a
+        // number for a nutrient inside attributes, which broke strict Map<String,String> parsing.
+        val raw = """
+            {"title":"White rice","category":"food","summary":"Cooked rice.","confidence":0.9,
+             "attributes":{"Calcium":"5","Sodium":5,"Ingredients":["White rice","Water"]}}
+        """.trimIndent()
+
+        val attrs = parser.parseAnalysis(raw).identification.attributes
+
+        assertEquals("White rice, Water", attrs["Ingredients"])
+        assertEquals("5", attrs["Sodium"]) // number coerced to string
+        assertEquals("5", attrs["Calcium"])
+    }
+
+    @Test
     fun `parses food nutrition inline`() {
         val raw = """
             {"title":"Cheeseburger","category":"food","summary":"A burger.","confidence":0.8,

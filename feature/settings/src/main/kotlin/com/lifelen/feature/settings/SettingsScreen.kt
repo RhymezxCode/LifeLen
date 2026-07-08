@@ -152,8 +152,8 @@ internal fun SettingsScreen(
             // --- API keys ---
             SectionTitle("API keys")
             Text(
-                "Qwen powers every identification — a default key ships with the app; paste your own " +
-                    "to override. Stored on this device only. See docs/API-KEYS.md.",
+                "Qwen powers every identification and works out of the box with a built-in key. " +
+                    "Leave these blank to use it, or paste your own to override. Stored on this device only.",
                 style = CaptionStyle,
                 color = TextSecondary,
             )
@@ -226,7 +226,7 @@ private fun ApiKeyEditor(settings: AppSettings, onSaveKeys: (String, String) -> 
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        KeyField("Qwen (DashScope) key — required", dashKey, reveal, onToggleReveal = { reveal = !reveal }) { dashKey = it }
+        KeyField("Qwen (DashScope) key — optional override", dashKey, reveal, onToggleReveal = { reveal = !reveal }) { dashKey = it }
         KeyField("Serper key — optional, boosts pricing", searchKey, reveal, onToggleReveal = { reveal = !reveal }) { searchKey = it }
         LifeLensButton(
             text = "Save keys",

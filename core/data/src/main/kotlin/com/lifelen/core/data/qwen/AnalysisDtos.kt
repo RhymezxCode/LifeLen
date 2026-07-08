@@ -2,6 +2,7 @@ package com.lifelen.core.data.qwen
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 /** Wire shapes for the JSON Qwen returns; mapped to domain models by [AnalysisParser]. */
 @Serializable
@@ -10,7 +11,9 @@ data class IdentificationDto(
     val category: String = "generic",
     val summary: String = "",
     val confidence: Float = 0f,
-    val attributes: Map<String, String> = emptyMap(),
+    // Values are JsonElement (not String) because Qwen sometimes returns arrays/numbers/objects here
+    // (e.g. "Ingredients": ["rice","water"]). AnalysisParser coerces each value to a display string.
+    val attributes: Map<String, JsonElement> = emptyMap(),
     val tags: List<String> = emptyList(),
     @SerialName("search_query") val searchQuery: String? = null,
     val nutrition: NutritionDto? = null,

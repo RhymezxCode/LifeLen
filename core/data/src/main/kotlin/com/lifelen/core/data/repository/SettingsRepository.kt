@@ -36,8 +36,12 @@ interface SettingsRepository {
     suspend fun setAutoSaveScans(enabled: Boolean)
     suspend fun setAutoScan(enabled: Boolean)
     suspend fun setRememberKeys(remember: Boolean)
-    /** Seeds keys from build-time defaults only when the user hasn't set their own. */
-    suspend fun seedDefaultsIfEmpty(dashScopeKey: String, searchKey: String)
+
+    /**
+     * Migration: clears any stored key that merely echoes the build-time default, so the bundled
+     * default no longer appears in Settings. The app still works via the [ApiKeyProvider] fallback.
+     */
+    suspend fun reconcileDefaultKeys(dashScopeKey: String, searchKey: String)
 }
 
 class DefaultSettingsRepository @Inject constructor(
@@ -81,15 +85,15 @@ class DefaultSettingsRepository @Inject constructor(
 
     override suspend fun setRememberKeys(remember: Boolean) = dataSource.setRememberKeys(remember)
 
-    override suspend fun seedDefaultsIfEmpty(dashScopeKey: String, searchKey: String) {
+    override suspend fun reconcileDefaultKeys(dashScopeKey: String, searchKey: String) {
         val current = dataSource.preferences.first()
-        if (current.rememberKeys) {
-            if (current.dashScopeApiKey.isBlank() && dashScopeKey.isNotBlank()) {
-                dataSource.setDashScopeApiKey(dashScopeKey)
-            }
-            if (current.searchApiKey.isBlank() && searchKey.isNotBlank()) {
-                dataSource.setSearchApiKey(searchKey)
-            }
+        // Older builds seeded the default key into storage, which then showed in Settings. Drop it —
+        // the ApiKeyProvider now supplies the default as a fallback without persisting it.
+        if (dashScopeKey.isNotBlank() && current.dashScopeApiKey == dashScopeKey) {
+            dataSource.setDashScopeApiKey("")
+        }
+        if (searchKey.isNotBlank() && current.searchApiKey == searchKey) {
+            dataSource.setSearchApiKey("")
         }
     }
 }

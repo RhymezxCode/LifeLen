@@ -118,7 +118,7 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
     override suspend fun setAutoSaveScans(enabled: Boolean) = settingsFlow.update { it.copy(autoSaveScans = enabled) }
     override suspend fun setAutoScan(enabled: Boolean) = settingsFlow.update { it.copy(autoScan = enabled) }
     override suspend fun setRememberKeys(remember: Boolean) = settingsFlow.update { it.copy(rememberKeys = remember) }
-    override suspend fun seedDefaultsIfEmpty(dashScopeKey: String, searchKey: String) = Unit
+    override suspend fun reconcileDefaultKeys(dashScopeKey: String, searchKey: String) = Unit
 }
 
 /** A priced electronics [Scan]; stat values include "M2" and the title deliberately does not. */
